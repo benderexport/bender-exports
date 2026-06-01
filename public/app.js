@@ -275,9 +275,11 @@ const apiFetch = async (path, opts = {}) => {
         }
       } catch (_) {}
     }
+    // Token expired and refresh failed — clear credentials silently.
+    // Do NOT reload: that causes an infinite loop on boot when the token is stale.
     localStorage.removeItem("bender_token");
     localStorage.removeItem("bender_refresh");
-    window.location.reload();
+    localStorage.removeItem("bender_user");
   }
   return res;
 };
@@ -745,9 +747,23 @@ function App() {
       // Plain fetch is used (not apiFetch) to avoid the 401→reload loop
       // that apiFetch triggers when no token is stored yet.
       try {
-        const token = localStorage.getItem("bender_token");
+        let token = localStorage.getItem("bender_token");
 
-        // If returning user has a token, flush offline ops first so we
+        // Validate JWT expiry before using it — a stale token causes 401s
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+              console.log("[Bender] Stored token expired — clearing credentials");
+              localStorage.removeItem("bender_token");
+              localStorage.removeItem("bender_refresh");
+              localStorage.removeItem("bender_user");
+              token = null;
+            }
+          } catch(_) {}
+        }
+
+        // If returning user has a valid token, flush offline ops first so we
         // don't overwrite changes they made while offline.
         if (token) {
           setLoadingStatus("Syncing offline changes…");
