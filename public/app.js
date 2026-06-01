@@ -152,12 +152,13 @@ const ROLES = {
   hq_finance: { label: "HQ Finance Officer", color: C.warning, light: C.warningLight, priority: 7 },
   hq_accountant: { label: "HQ Accountant", color: "#5A8A6A", light: "#7ABAA0", priority: 7 },
   hq_ops: { label: "HQ Ops Manager", color: "#7A5AC8", light: "#9A7AE8", priority: 6 },
+  hq_it:  { label: "HQ IT Officer",  color: "#3A8FC8", light: "#5AAFE8", priority: 6 },
   station_manager: { label: "Station Manager", color: C.coffee, light: C.coffeeLight, priority: 5 },
   cashier: { label: "Cashier", color: C.success, light: "#78D890", priority: 4 },
   clerk: { label: "Clerk", color: "#7AAABB", light: "#9ACADB", priority: 3 },
   driver: { label: "Driver", color: C.machinery, light: C.machineryLight, priority: 2 }
 };
-const HQ_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"];
+const HQ_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"];
 const WAREHOUSE_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"];
 const STATION_ROLES = ["station_manager", "cashier", "clerk"];
 const hasAccess = (u, sec) => {
@@ -167,11 +168,15 @@ const hasAccess = (u, sec) => {
     construction: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"],
     warehouse: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
     users: ["sudo", "md"],
-    import: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"],
+    import: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
     system: ["sudo"],
     reports: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager", "cashier"],
     driver_log: ["driver"],
-    fund_requests: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"]
+    fund_requests: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
+    field_requisition: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
+    chat: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it", "station_manager", "cashier", "clerk", "driver"],
+    loans:     ["sudo", "md"],
+    contracts: ["sudo", "md"]
   };
   return (map[sec] || []).includes(u.role);
 };
@@ -190,6 +195,11 @@ const canSendToWarehouse = (r) => ["station_manager", "sudo", "md", "admin"].inc
 const canConfirmWarehouse = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"].includes(r);
 const canManageConstruction = (r) => ["sudo", "md", "admin", "hq_finance", "hq_ops"].includes(r);
 const canSeeAllStations = (r) => HQ_ROLES.includes(r) || ["admin"].includes(r);
+const canManageChats    = (r) => ["sudo", "md", "admin"].includes(r);
+const canSeeMDDashboard = (r) => ["sudo", "md"].includes(r);
+const canSubmitFieldReq = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"].includes(r);
+const canApproveFieldReq = (r) => ["sudo", "hq_finance", "admin"].includes(r);
+const canReleaseFieldCheque = (r) => ["sudo", "md"].includes(r);
 const fmtRWF = (n) => `${Number(n || 0).toLocaleString()} RWF`;
 const fmtKg = (n) => `${Number(n || 0).toLocaleString()} kg`;
 const today = () => (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
@@ -275,11 +285,9 @@ const apiFetch = async (path, opts = {}) => {
         }
       } catch (_) {}
     }
-    // Token expired and refresh failed — clear credentials silently.
-    // Do NOT reload: that causes an infinite loop on boot when the token is stale.
     localStorage.removeItem("bender_token");
     localStorage.removeItem("bender_refresh");
-    localStorage.removeItem("bender_user");
+    window.location.reload();
   }
   return res;
 };
@@ -367,7 +375,8 @@ function App() {
   const [debts, setDebtsRaw] = useState(INIT_DEBTS);
   const [stock, setStockRaw] = useState(INIT_STOCK);
   const [fundRequests, setFundRequestsRaw] = useState(INIT_FUND_REQUESTS);
-  const [warehouseStock, setWarehouseStockRaw] = useState(INIT_WAREHOUSE_STOCK);
+  const [warehouseStock, setWarehouseStockRaw]       = useState(INIT_WAREHOUSE_STOCK);
+  const [warehouseMovements, setWarehouseMovementsRaw] = useState([]);
   const [projects, setProjectsRaw] = useState(INIT_PROJECTS);
   const [projectCosts, setProjectCostsRaw] = useState(INIT_PROJECT_COSTS);
   const [milestones, setMilestonesRaw] = useState(INIT_MILESTONES);
@@ -380,12 +389,7 @@ function App() {
   const [leaves, setLeavesRaw] = useState(INIT_LEAVES);
   const [pending, setPendingRaw] = useState(INIT_PENDING);
   const [system, setSystemRaw] = useState(INIT_SYSTEM);
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bender_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
+  const [currentUser, setCurrentUser] = useState(null);
   const [online, setOnline] = useState(typeof window.__benderOnline !== 'undefined' ? window.__benderOnline : navigator.onLine);
 
   // When the device comes back online: flush queued ops, then pull latest data
@@ -445,6 +449,7 @@ function App() {
   const TABLE_MAP = {
     bank:      "bank_transactions",
     warehouse: "warehouse_stock",
+    warehouse_movements: "warehouse_movements",
     cws:       "cws",
     farmers:   "farmers",
     cherry:    "cherry",
@@ -674,7 +679,8 @@ function App() {
   const setDebts = mkSet(setDebtsRaw, "debts");
   const setStock = mkSet(setStockRaw, "stock");
   const setFundRequests = mkSet(setFundRequestsRaw, "fund_requests");
-  const setWarehouseStock = mkSet(setWarehouseStockRaw, "warehouse");
+  const setWarehouseStock     = mkSet(setWarehouseStockRaw,       "warehouse");
+  const setWarehouseMovements = mkSet(setWarehouseMovementsRaw, "warehouse_movements");
   const setProjects = mkSet(setProjectsRaw, "projects");
   const setProjectCosts = mkSet(setProjectCostsRaw, "project_costs");
   const setMilestones = mkSet(setMilestonesRaw, "milestones");
@@ -721,7 +727,8 @@ function App() {
         if (d.debts)           setDebtsRaw(d.debts);
         if (d.stock)           setStockRaw(d.stock);
         if (d.fund_requests)   setFundRequestsRaw(d.fund_requests);
-        if (d.warehouse)       setWarehouseStockRaw(d.warehouse);
+        if (d.warehouse)            setWarehouseStockRaw(d.warehouse);
+        if (d.warehouse_movements)  setWarehouseMovementsRaw(d.warehouse_movements);
         if (d.projects)        setProjectsRaw(d.projects);
         if (d.project_costs)   setProjectCostsRaw(d.project_costs);
         if (d.milestones)      setMilestonesRaw(d.milestones);
@@ -747,23 +754,9 @@ function App() {
       // Plain fetch is used (not apiFetch) to avoid the 401→reload loop
       // that apiFetch triggers when no token is stored yet.
       try {
-        let token = localStorage.getItem("bender_token");
+        const token = localStorage.getItem("bender_token");
 
-        // Validate JWT expiry before using it — a stale token causes 401s
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split(".")[1]));
-            if (payload.exp && payload.exp * 1000 < Date.now()) {
-              console.log("[Bender] Stored token expired — clearing credentials");
-              localStorage.removeItem("bender_token");
-              localStorage.removeItem("bender_refresh");
-              localStorage.removeItem("bender_user");
-              token = null;
-            }
-          } catch(_) {}
-        }
-
-        // If returning user has a valid token, flush offline ops first so we
+        // If returning user has a token, flush offline ops first so we
         // don't overwrite changes they made while offline.
         if (token) {
           setLoadingStatus("Syncing offline changes…");
@@ -789,7 +782,8 @@ function App() {
               debts:            setDebtsRaw,
               stock:            setStockRaw,
               fund_requests:    setFundRequestsRaw,
-              warehouse_stock:  setWarehouseStockRaw,
+              warehouse_stock:      setWarehouseStockRaw,
+              warehouse_movements: setWarehouseMovementsRaw,
               projects:         setProjectsRaw,
               project_costs:    setProjectCostsRaw,
               milestones:       setMilestonesRaw,
@@ -948,7 +942,7 @@ function App() {
 
     return null;
   };
-  const ctx = { users, setUsers, cwsList, setCwsList, syncToServer, deleteFromServer, farmers: farmers2, setFarmers, seasons, setSeasons, stationSeasons, setStationSeasons, cherry, setCherry, cashbook, setCashbook, bankTx, setBankTx, expenses, setExpenses, debts, setDebts, stock, setStock, fundRequests, setFundRequests, warehouseStock, setWarehouseStock, projects, setProjects, projectCosts, setProjectCosts, milestones, setMilestones, contractors, setContractors, machines, setMachines, assistants, setAssistants, tasks, setTasks, machTx, setMachTx, driverLogs, setDriverLogs, leaves, setLeaves, pending, setPending, system, setSystem, currentUser, online, setOnline, notifications, setNotifications, addNote, page, setPage, dbReady };
+  const ctx = { users, setUsers, cwsList, setCwsList, syncToServer, deleteFromServer, farmers: farmers2, setFarmers, seasons, setSeasons, stationSeasons, setStationSeasons, cherry, setCherry, cashbook, setCashbook, bankTx, setBankTx, expenses, setExpenses, debts, setDebts, stock, setStock, fundRequests, setFundRequests, warehouseStock, setWarehouseStock, warehouseMovements, setWarehouseMovements, projects, setProjects, projectCosts, setProjectCosts, milestones, setMilestones, contractors, setContractors, machines, setMachines, assistants, setAssistants, tasks, setTasks, machTx, setMachTx, driverLogs, setDriverLogs, leaves, setLeaves, pending, setPending, system, setSystem, currentUser, online, setOnline, notifications, setNotifications, addNote, page, setPage, dbReady };
   if (!dbReady) return <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
       <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, letterSpacing: '-0.5px', fontWeight: 700, color: C.gold }}>Bender Exports</div>
       <div style={{ fontSize: 13, color: C.textMuted }}>{loadingStatus}</div>
@@ -960,7 +954,6 @@ function App() {
     const u = await login(e, p);
     if (u) {
       setCurrentUser(u);
-      try { localStorage.setItem("bender_user", JSON.stringify(u)); } catch(_) {}
       // After login we have a real token — flush offline ops then re-pull
       // so any token-gated data (e.g. role-filtered views) is loaded fresh.
       setDbReady(false);
@@ -977,7 +970,7 @@ function App() {
             const setters = {
               cherry:setCherryRaw,cashbook:setCashbookRaw,bank_transactions:setBankTxRaw,
               expenses:setExpensesRaw,debts:setDebtsRaw,stock:setStockRaw,
-              fund_requests:setFundRequestsRaw,warehouse_stock:setWarehouseStockRaw,
+              fund_requests:setFundRequestsRaw,warehouse_stock:setWarehouseStockRaw, warehouse_movements:setWarehouseMovementsRaw,
               projects:setProjectsRaw,project_costs:setProjectCostsRaw,milestones:setMilestonesRaw,
               contractors:setContractorsRaw,machines:setMachinesRaw,assistants:setAssistantsRaw,
               tasks:setTasksRaw,mach_tx:setMachTxRaw,driver_logs:setDriverLogsRaw,
@@ -1005,17 +998,13 @@ function App() {
             setUsersRaw(m); DB.save("users", m);
           }
         }
-      } catch(err) {
-        console.warn("[Bender] Post-login pull failed:", err.message);
-      } finally {
-        setDbReady(true); // always unblock — even if pull fails
-      }
+      } catch(_) {}
+      setDbReady(true);
     }
     return !!u;
   }} system={system} /></Ctx.Provider>;
   return <Ctx.Provider value={ctx}><style>{GS}</style><Shell onLogout={() => {
     localStorage.removeItem("bender_token");
-    localStorage.removeItem("bender_user");
     // Clear the token from the service worker so it stops background syncs
     swNotify("SET_TOKEN", { token: null });
     setCurrentUser(null);
@@ -1433,6 +1422,11 @@ function Shell({ onLogout }) {
     { id: "users",        label: "Users",                                              icon: "👥", show: hasAccess(u, "users") },
     { id: "system",       label: "System",                                             icon: "⚙️", show: hasAccess(u, "system") },
     { id: "import",       label: "Import Data",                                        icon: "📥", show: hasAccess(u, "import") },
+    { id: "field_requisition", label: "Field Requisition",                            icon: "📋", show: hasAccess(u, "field_requisition") },
+    { id: "chat",              label: "Team Chat",                                        icon: "💬", show: hasAccess(u, "chat") },
+    { id: "loans",             label: "MD Loans",                                         icon: "💰", show: hasAccess(u, "loans") },
+    { id: "contracts",         label: "Export Contracts",                                 icon: "📄", show: hasAccess(u, "contracts") },
+    { id: "loans",             label: "MD Loan Book",                                     icon: "🤝", show: hasAccess(u, "loans") },
   ].filter(n => n.show !== false);
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -1457,6 +1451,7 @@ function Shell({ onLogout }) {
     <nav style={{ flex: 1, padding: "2px 10px", overflowY: "auto" }}>
       {NAV.map(item => {
         const active = page.view === item.id;
+        const unreadMsgs = item.id === "chat" ? (window.__chatUnread || 0) : 0;
         const hasBadge = item.id === "coffee" && pendingFunds > 0 && canVerifyFunds(u.role);
         return <div key={item.id}
           onClick={() => { setPage({ view: item.id, sub: null }); if (mobile) closeSidebar(); }}
@@ -1474,6 +1469,7 @@ function Shell({ onLogout }) {
           <span style={{ fontSize: 15, width: 20, textAlign: "center", flexShrink: 0 }}>{item.icon}</span>
           <span style={{ flex: 1 }}>{item.label}</span>
           {hasBadge && <span style={{ background: `linear-gradient(135deg,${C.warning},${C.warningLight})`, color: "#0A0F0A", fontSize: 9, padding: "2px 6px", borderRadius: 20, fontWeight: 700 }}>{pendingFunds}</span>}
+          {unreadMsgs > 0 && <span style={{ background: `linear-gradient(135deg,${C.info},${C.machinery})`, color: "#fff", fontSize: 9, padding: "2px 6px", borderRadius: 20, fontWeight: 700 }}>{unreadMsgs}</span>}
           {active && <span style={{ width: 4, height: 4, borderRadius: "50%", background: C.gold, flexShrink: 0 }} />}
         </div>;
       })}
@@ -1567,11 +1563,168 @@ function Shell({ onLogout }) {
 function PageRouter() {
   const { page, currentUser: u } = useApp();
   if (u.role === "driver") return <DriverHome />;
-  const views = { home: <HomePage />, coffee: <CoffeePage />, machinery: <MachineryPage />, construction: <ConstructionPage />, warehouse: <WarehousePage />, reports: <ReportsPage />, users: <UsersPage />, system: <SystemPage />, import: <ImportPage /> };
+  const views = { home: <HomePage />, coffee: <CoffeePage />, machinery: <MachineryPage />, construction: <ConstructionPage />, warehouse: <WarehousePage />, reports: <ReportsPage />, users: <UsersPage />, system: <SystemPage />, import: <ImportPage />, field_requisition: <FieldRequisitionPage />, chat: <ChatPage />, loans: <LoansPage />, contracts: <ContractsPage /> };
   return <div style={{ animation: "fadeUp .3s ease both" }}>{views[page.view] || <HomePage />}</div>;
 }
+// ═══════════════════════════════════════════════════════════════════
+// useCoffeeMarket — shared hook that fetches ICE Arabica price once
+// and caches it in window.__coffeeMarket for the session so both
+// HomePage and WarehousePage share the same live data.
+// ═══════════════════════════════════════════════════════════════════
+function useCoffeeMarket(enabled) {
+  const [market, setMarket] = useState(window.__coffeeMarket || {
+    price:null, change:null, changePct:null, high:null, low:null,
+    fetchedAt:null, loading:false, error:null,
+  });
+  const [rwfRate, setRwfRate]     = useState(window.__rwfRate || null);
+  const [manualPrice, setManualPrice] = useState("");
+
+  const fetch_ = async () => {
+    if (!enabled) return;
+    setMarket(p => ({ ...p, loading:true, error:null }));
+    try {
+      const token = localStorage.getItem("bender_token") || "";
+      const res   = await fetch("/api/market/coffee", { headers:{ Authorization:`Bearer ${token}` } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      const m = { price:d.price, change:d.change, changePct:d.changePct, high:d.high, low:d.low,
+                  fetchedAt: new Date().toLocaleTimeString("en-RW"), loading:false, error:null };
+      window.__coffeeMarket = m;
+      setMarket(m);
+      if (d.rwfRate) { window.__rwfRate = d.rwfRate; setRwfRate(d.rwfRate); }
+    } catch(e) {
+      setMarket(p => ({ ...p, loading:false, error:"Could not fetch live price." }));
+    }
+  };
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (!window.__coffeeMarket) fetch_();
+    const iv = setInterval(fetch_, 5*60*1000);
+    return () => clearInterval(iv);
+  }, [enabled]);
+
+  const effectivePrice = manualPrice ? parseFloat(manualPrice) : market.price;
+  const usdPerKg    = effectivePrice  ? effectivePrice / 0.453592   : null;
+  const usdPerTonne = usdPerKg        ? usdPerKg * 1000             : null;
+  const rwf         = rwfRate         || 1430;
+  const rwfPerKg    = usdPerKg        ? usdPerKg * rwf              : null;
+  const rwfPerTonne = rwfPerKg        ? rwfPerKg * 1000             : null;
+
+  return { market, rwfRate, setRwfRate, manualPrice, setManualPrice,
+           effectivePrice, usdPerKg, usdPerTonne, rwf, rwfPerKg, rwfPerTonne,
+           refresh: fetch_ };
+}
+
+// ── CoffeeMarketWidget ──────────────────────────────────────────────
+// Reusable panel — used on both the MD Dashboard and WarehousePage.
+// Pass kgBalance to show stock valuation, or null to hide that row.
+function CoffeeMarketWidget({ kgBalance = null, compact = false }) {
+  const { currentUser: u } = useApp();
+  const cm = useCoffeeMarket(canSeeMDDashboard(u.role));
+  const { market, rwfRate, setRwfRate, manualPrice, setManualPrice,
+          effectivePrice, usdPerKg, usdPerTonne, rwf, rwfPerKg, rwfPerTonne, refresh } = cm;
+
+  const [expanded, setExpanded] = useState(false);
+  if (!canSeeMDDashboard(u.role)) return null;
+
+  const up        = market.change >= 0;
+  const fmtU      = v => v != null ? `$${Number(v).toFixed(4)}` : "—";
+  const fmtBig    = v => v != null ? `$${Number(v).toLocaleString(undefined,{maximumFractionDigits:0})}` : "—";
+  const balT      = kgBalance != null ? kgBalance / 1000 : null;
+  const mktValUsd = balT != null && usdPerTonne ? balT * usdPerTonne : null;
+  const mktValRwf = balT != null && rwfPerTonne ? balT * rwfPerTonne : null;
+
+  return (
+    <div style={{ background:`linear-gradient(135deg,${C.bgDeep},${C.bgCard})`, border:`1.5px solid ${C.gold}35`, borderRadius:14, padding: compact?"14px 16px":"18px 20px", marginBottom:20 }}>
+      {/* Title row */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:20 }}>☕</span>
+          <div>
+            <div style={{ fontSize: compact?12:13, fontWeight:700, color:C.goldLight }}>ICE Arabica Coffee C — New York</div>
+            <div style={{ fontSize:10, color:C.textDim }}>KC futures · USD/lb · {market.fetchedAt ? `Updated ${market.fetchedAt}` : "Loading…"}</div>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:7, alignItems:"center" }}>
+          <button onClick={refresh} disabled={market.loading}
+            style={{ ...BtnS(C.gold,true), fontSize:10, padding:"4px 10px", opacity:market.loading?.5:1 }}>
+            {market.loading ? "⏳" : "↻"}
+          </button>
+          <button onClick={() => setExpanded(p=>!p)}
+            style={{ ...BtnS(C.border,false,true), fontSize:10, padding:"4px 10px" }}>
+            {expanded ? "▲" : "▼"}
+          </button>
+        </div>
+      </div>
+
+      {market.error && <div style={{ fontSize:11, color:C.warning, marginBottom:10 }}>⚠ {market.error} You can set a manual price below.</div>}
+
+      {/* Price row */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:9, marginBottom: kgBalance!=null?12:0 }}>
+        {[
+          ["Live Price (USD/lb)", effectivePrice != null ? `$${Number(effectivePrice).toFixed(4)}` : "—", C.goldLight],
+          ["Day Change",
+            market.change != null ? `${market.change>=0?"+":""}${Number(market.change).toFixed(4)} (${Number(market.changePct||0).toFixed(2)}%)` : "—",
+            market.change != null ? (market.change>=0 ? C.success : C.danger) : C.textDim],
+          ["Day High", fmtU(market.high), C.success],
+          ["Day Low",  fmtU(market.low),  C.danger],
+        ].map(([label,val,col]) => (
+          <div key={label} style={{ background:C.surface, borderRadius:8, padding:"9px 11px", border:`1px solid ${col}15` }}>
+            <div style={{ fontSize:9, color:C.textDim, marginBottom:2, textTransform:"uppercase", letterSpacing:"0.4px" }}>{label}</div>
+            <div style={{ fontSize:12, fontWeight:700, color:col }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Warehouse valuation — only when kgBalance provided */}
+      {kgBalance != null && (
+        <div style={{ background:`${C.gold}08`, border:`1px solid ${C.gold}20`, borderRadius:9, padding:"11px 14px", marginTop:12 }}>
+          <div style={{ fontSize:9, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+            📦 Warehouse Stock Value — {(kgBalance/1000).toFixed(2)} T ({kgBalance.toLocaleString()} kg)
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:9 }}>
+            {[
+              ["USD/kg",        usdPerKg   ? `$${usdPerKg.toFixed(4)}` : "—",       C.info],
+              ["USD/Tonne",     usdPerTonne? fmtBig(usdPerTonne)        : "—",       C.info],
+              ["Total (USD)",   mktValUsd  ? fmtBig(mktValUsd)          : "—",       C.goldLight],
+              [`Total (RWF @${rwf.toLocaleString()})`, mktValRwf ? fmtRWF(Math.round(mktValRwf)) : "—", C.gold],
+            ].map(([l,v,c]) => (
+              <div key={l} style={{ background:C.bgCard, borderRadius:7, padding:"9px 11px" }}>
+                <div style={{ fontSize:9, color:C.textDim, marginBottom:2 }}>{l}</div>
+                <div style={{ fontSize:13, fontWeight:800, color:c }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Expanded: overrides */}
+      {expanded && (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))", gap:11, marginTop:14, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
+          <div>
+            <FL>USD → RWF Rate (override)</FL>
+            <input type="number" value={rwfRate||""} onChange={e=>setRwfRate(+e.target.value||null)}
+              placeholder="e.g. 1430"
+              style={{ width:"100%", padding:"8px 11px", background:C.surface, border:`1.5px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" }}
+              onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}} />
+          </div>
+          <div>
+            <FL>Manual Price Override (USD/lb)</FL>
+            <input type="number" value={manualPrice} onChange={e=>setManualPrice(e.target.value)}
+              placeholder={market.price ? `Live: $${market.price}` : "e.g. 2.55"}
+              style={{ width:"100%", padding:"8px 11px", background:C.surface, border:`1.5px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" }}
+              onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}} />
+            {manualPrice && <div style={{ fontSize:9, color:C.warning, marginTop:2 }}>⚠ Manual override — live price ignored</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HomePage() {
-  const { currentUser: u, cherry, expenses, cashbook, fundRequests, cwsList, machTx, machines, tasks, users, system, setPage } = useApp();
+  const { currentUser: u, cherry, expenses, cashbook, fundRequests, cwsList, warehouseMovements, machTx, machines, tasks, users, system, setPage } = useApp();
   if (u.role === "clerk") {
     const myCws = cwsList.find((c) => (u.cwsAccess || []).includes(c.id));
     const myCherry = cherry.filter((c) => (u.cwsAccess || []).includes(c.cwsId));
@@ -1686,6 +1839,12 @@ function HomePage() {
         <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{ROLES[u.role]?.label} · {(/* @__PURE__ */ new Date()).toLocaleDateString("en-RW", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</div>
       </div>
       <AlertsPanel />
+      {/* ── MD/Sudo: Live coffee market price widget ── */}
+      {canSeeMDDashboard(u.role) && (() => {
+        const kgIn  = warehouseMovements.filter(m => m.direction === "in") .reduce((s,m) => s+(+m.kg||0), 0);
+        const kgOut = warehouseMovements.filter(m => m.direction === "out").reduce((s,m) => s+(+m.kg||0), 0);
+        return <CoffeeMarketWidget kgBalance={kgIn - kgOut} />;
+      })()}
       {pendingFR.length > 0 && canVerifyFunds(u.role) && <div style={{ marginBottom: 16, background: `${C.warning}0A`, border: `1px solid ${C.warning}28`, borderRadius: 12, overflow: "hidden" }}>
           <div style={{ padding: "11px 16px", borderBottom: `1px solid ${C.warning}18`, display: "flex", alignItems: "center", gap: 8 }}>
             <span>💰</span><span style={{ fontWeight: 700, fontSize: 13, color: C.warning }}>{pendingFR.length} Fund Request{pendingFR.length > 1 ? "s" : ""} Pending Action</span>
@@ -2013,7 +2172,7 @@ function SeasonsPage({ onBack }) {
     </div>;
 }
 function CWSDetailPage({ cwsId, onBack }) {
-  const { currentUser: u, cwsList, farmers: farmers2, setFarmers, cherry, setCherry, cashbook, setCashbook, bankTx, setBankTx, expenses, setExpenses, debts, setDebts, stock, setStock, fundRequests, setFundRequests, users, addNote, online } = useApp();
+  const { currentUser: u, cwsList, farmers: farmers2, setFarmers, cherry, setCherry, cashbook, setCashbook, bankTx, setBankTx, expenses, setExpenses, debts, setDebts, stock, setStock, fundRequests, setFundRequests, warehouseMovements, setWarehouseMovements, machines, users, addNote, online } = useApp();
   const cws = cwsList.find((c) => c.id === cwsId);
   const clerkOnly = u.role === "clerk";
   const [tab, setTab] = useState(clerkOnly ? "cherry" : "overview");
@@ -2022,7 +2181,8 @@ function CWSDetailPage({ cwsId, onBack }) {
   const [showCashForm, setShowCashForm] = useState(false);
   const [showExpForm, setShowExpForm] = useState(false);
   const [showDebtForm, setShowDebtForm] = useState(false);
-  const [showStockForm, setShowStockForm] = useState(false);
+  const [showStockForm, setShowStockForm]         = useState(false);
+  const [showSendWarehouse, setShowSendWarehouse] = useState(false);
   const [showFundReqForm, setShowFundReqForm] = useState(false);
   const [showPayGNR, setShowPayGNR] = useState(null);
   const [farmerForm, setFarmerForm] = useState({ name: "", farmerId: "", group: "", phone: "" });
@@ -2139,6 +2299,48 @@ function CWSDetailPage({ cwsId, onBack }) {
     setShowStockForm(false);
     setStockForm({ date: today(), description: "", grade: "Parchment", tonnesIn: "", tonnesOut: "", unitCost: "", valuationMethod: "weighted_avg" });
     addNote("Stock movement recorded", "success");
+  };
+  const saveSendToWarehouse = (f) => {
+    if (!f.kg || +f.kg <= 0)    return addNote("Enter a valid kg amount", "warning");
+    if (!f.driverName.trim() && !f.driverId) return addNote("Driver name is required", "warning");
+    const kg = +f.kg;
+    const tonnes = kg / 1000;
+
+    // Auto-fill plate from machine if driver selected
+    let plate = f.plateNumber;
+    if (f.driverId && !plate) {
+      const machine = machines.find(m => m.driverId === f.driverId);
+      plate = machine?.plate || "";
+    }
+
+    // 1. CWS stock — record as stock OUT (tonnesOut)
+    const cwsKgIn = myStock.reduce((s, sk) => s + (+sk.tonnesIn || 0), 0) * 1000;
+    const cwsKgOut = myStock.reduce((s, sk) => s + (+sk.tonnesOut || 0), 0) * 1000;
+    const cwsBalance = cwsKgIn - cwsKgOut;
+    if (kg > cwsBalance + 0.01) return addNote(`Insufficient CWS stock. Available: ${cwsBalance.toLocaleString()} kg`, "warning");
+
+    setStock(p => [...p, {
+      id: uid(), cwsId, date: f.date, grade: f.grade,
+      description: `Sent to Warehouse — ${f.lotNumber || ""}${f.driverName ? " · " + f.driverName : ""}${plate ? " · " + plate : ""}`,
+      tonnesIn: 0, tonnesOut: tonnes,
+      tonnesBalance: -(tonnes),
+      unitCost: 0, totalValue: 0, valuationMethod: "weighted_avg",
+      sentToWarehouse: true, warehouseRef: f.warehouseRef,
+    }]);
+
+    // 2. Warehouse movement — record as stock IN
+    setWarehouseMovements(p => [{
+      id: uid(), direction: "in", kg, grade: f.grade,
+      location: cws.name + (cws.region ? " · " + cws.region : ""),
+      lotNumber: f.lotNumber, gnrRefs: f.gnrRefs,
+      driverId: f.driverId || null, driverName: f.driverName,
+      plateNumber: plate, notes: f.notes, date: f.date,
+      recordedBy: u.id, recordedByName: u.name,
+      fromCwsId: cwsId,
+    }, ...p]);
+
+    setShowSendWarehouse(false);
+    addNote(`${kg.toLocaleString()} kg sent to warehouse — recorded at CWS and Warehouse`, "success");
   };
   const saveFundReq = () => {
     if (!fundReqForm.amount || !fundReqForm.reason) return;
@@ -2418,16 +2620,20 @@ function CWSDetailPage({ cwsId, onBack }) {
       {tab === "stock" && <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 13, color: C.textMuted }}>Inventory & stock movements</div>
-            {canApproveExpense(u.role) && <button onClick={() => setShowStockForm(true)} style={{ ...BtnS(C.info, true), fontSize: 11, padding: "7px 13px" }}>+ Stock Movement</button>}
+            <div style={{ display:"flex", gap:8 }}>
+              {canSendToWarehouse(u.role) && <button onClick={() => setShowSendWarehouse(true)} style={{ ...BtnS(C.gold), fontSize:11, padding:"7px 13px" }}>🏭 Send to Warehouse</button>}
+              {canApproveExpense(u.role) && <button onClick={() => setShowStockForm(true)} style={{ ...BtnS(C.info, true), fontSize:11, padding:"7px 13px" }}>+ Stock Movement</button>}
+            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 14 }}>
-            <SC label="Total Tonnes In" value={`${myStock.reduce((s, sk) => s + sk.tonnesIn, 0).toFixed(2)} T`} color={C.coffee} />
-            <SC label="Total Tonnes Out" value={`${myStock.reduce((s, sk) => s + sk.tonnesOut, 0).toFixed(2)} T`} color={C.warning} />
-            <SC label="Total Stock Value" value={fmtRWF(myStock.reduce((s, sk) => s + (+sk.totalValue || 0), 0))} color={C.gold} />
+            <SC label="Total Tonnes In"  value={`${myStock.reduce((s, sk) => s + (+sk.tonnesIn||0), 0).toFixed(2)} T`}  color={C.coffee} />
+            <SC label="Total Tonnes Out" value={`${myStock.reduce((s, sk) => s + (+sk.tonnesOut||0), 0).toFixed(2)} T`} color={C.warning} />
+            <SC label="Balance on Hand"  value={`${(myStock.reduce((s,sk)=>s+(+sk.tonnesIn||0),0)-myStock.reduce((s,sk)=>s+(+sk.tonnesOut||0),0)).toFixed(2)} T`} color={C.gold} />
+            <SC label="Stock Value"      value={fmtRWF(myStock.reduce((s, sk) => s + (+sk.totalValue || 0), 0))} color={C.info} />
           </div>
           <div style={{ background: C.gradCard, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
             {myStock.length === 0 ? <ES text="No stock movements recorded" /> : <div className="tbl-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: C.surface }}>{["Date", "Description", "Grade", "Tonnes In", "Tonnes Out", "Balance", "Unit Cost", "Total Value", "Method"].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
+                <thead><tr style={{ background: C.surface }}>{["Date", "Description", "Grade", "Tonnes In", "Tonnes Out", "Balance", "Unit Cost", "Total Value", "Method", ""].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
                 <tbody>{myStock.map((sk) => <tr key={sk.id} style={{ borderBottom: `1px solid ${C.border}15` }} onMouseEnter={(e) => e.currentTarget.style.background = C.surface} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                     <Td style={{ color: C.textMuted }}>{sk.date}</Td>
                     <Td style={{ fontWeight: 500 }}>{sk.description}</Td>
@@ -2437,7 +2643,8 @@ function CWSDetailPage({ cwsId, onBack }) {
                     <Td style={{ color: C.gold, fontWeight: 700 }}>{sk.tonnesBalance.toFixed(2)} T</Td>
                     <Td style={{ color: C.textMuted }}>{fmtRWF(sk.unitCost)}/kg</Td>
                     <Td style={{ fontWeight: 700, color: C.text }}>{fmtRWF(sk.totalValue)}</Td>
-                    <Td style={{ fontSize: 10, color: C.textDim }}>{sk.valuationMethod.replace(/_/g, " ")}</Td>
+                    <Td style={{ fontSize: 10, color: C.textDim }}>{(sk.valuationMethod||"").replace(/_/g, " ")}</Td>
+                    <Td>{sk.sentToWarehouse && <span style={{ background:`${C.gold}18`, color:C.gold, border:`1px solid ${C.gold}30`, borderRadius:20, padding:"2px 8px", fontSize:9, fontWeight:700 }}>🏭 WH</span>}</Td>
                   </tr>)}</tbody>
               </table></div>}
           </div>
@@ -2584,6 +2791,46 @@ function CWSDetailPage({ cwsId, onBack }) {
           </div>
           <MF onCancel={() => setShowDebtForm(false)} onSave={saveDebt} label="Record Debt" color={C.danger} />
         </Modal>}
+      {showSendWarehouse && (() => {
+        const blankSW = { kg:"", grade:"Parchment", lotNumber:"", gnrRefs:"", driverId:"", driverName:"", plateNumber:"", notes:"", date: today() };
+        const SWForm = () => {
+          const [f, setF] = useState(blankSW);
+          const sf = k => v => setF(p => ({ ...p, [k]:v }));
+          const drivers = users.filter(u => u.role === "driver");
+          const onDriverChange = (driverId) => {
+            const driver  = users.find(uu => uu.id === driverId);
+            const machine = machines.find(m => m.driverId === driverId);
+            setF(p => ({ ...p, driverId, driverName: driver?.name || p.driverName, plateNumber: machine?.plate || p.plateNumber }));
+          };
+          const cwsKgIn  = myStock.reduce((s,sk) => s+(+sk.tonnesIn||0), 0) * 1000;
+          const cwsKgOut = myStock.reduce((s,sk) => s+(+sk.tonnesOut||0), 0) * 1000;
+          const available = cwsKgIn - cwsKgOut;
+          return <Modal title={`🏭 Send to Warehouse — ${cws.name}`} onClose={() => setShowSendWarehouse(false)} wide>
+            <div style={{ background:`${C.gold}10`, border:`1px solid ${C.gold}28`, borderRadius:9, padding:"10px 14px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:12, color:C.textMuted }}>Available CWS Stock</span>
+              <span style={{ fontWeight:800, color:C.goldLight, fontSize:15 }}>{available.toLocaleString()} kg ({(available/1000).toFixed(2)} T)</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))", gap:12, marginBottom:12 }}>
+              <FI label="Date" type="date" value={f.date} onChange={sf("date")} />
+              <div><FL>Grade</FL><select value={f.grade} onChange={e=>sf("grade")(e.target.value)} style={selS()}>{["Parchment","Green Coffee","Specialty","Defects","By-Products"].map(g=><option key={g}>{g}</option>)}</select></div>
+              <FI label="Quantity (kg)" type="number" value={f.kg} onChange={sf("kg")} placeholder={`max ${available.toLocaleString()}`} />
+              <FI label="Lot Number" value={f.lotNumber} onChange={sf("lotNumber")} placeholder="LOT-XXX-001" />
+              <FI label="GNR References" value={f.gnrRefs} onChange={sf("gnrRefs")} placeholder="GNR-MSZ-0001" />
+              <div><FL>Driver (select from system)</FL>
+                <select value={f.driverId} onChange={e=>onDriverChange(e.target.value)} style={selS()}>
+                  <option value="">— Manual entry —</option>
+                  {drivers.map(d => { const m = machines.find(m=>m.driverId===d.id); return <option key={d.id} value={d.id}>{d.name}{m?` · ${m.plate}`:""}</option>; })}
+                </select>
+              </div>
+              <FI label="Driver Name" value={f.driverName} onChange={sf("driverName")} placeholder="Full name" />
+              <FI label="Car Plate Number" value={f.plateNumber} onChange={sf("plateNumber")} placeholder="e.g. RAC 123A" />
+            </div>
+            <FI label="Notes" value={f.notes} onChange={sf("notes")} placeholder="Optional" />
+            <MF onCancel={() => setShowSendWarehouse(false)} onSave={() => saveSendToWarehouse(f)} label="Confirm Send to Warehouse" color={C.gold} />
+          </Modal>;
+        };
+        return <SWForm />;
+      })()}
       {showStockForm && <Modal title={`Stock Movement \u2014 ${cws.name}`} onClose={() => setShowStockForm(false)}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 11 }}>
             <FI label="Date" type="date" value={stockForm.date} onChange={(v) => setStockForm((p) => ({ ...p, date: v }))} />
@@ -2775,83 +3022,2274 @@ function AlertsPanel() {
     </div>;
 }
 function WarehousePage() {
-  const { currentUser: u, warehouseStock, setWarehouseStock, cwsList, addNote } = useApp();
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ fromCwsId: "", grade: "Parchment", tonnes: "", lotNumber: "", gnrRefs: "", transportDetails: "", notes: "" });
-  const totalTonnes = warehouseStock.reduce((s, w) => s + w.tonnes, 0);
-  const pending = warehouseStock.filter((w) => w.status === "pending");
-  const confirmed = warehouseStock.filter((w) => w.status === "confirmed");
+  const { currentUser: u, warehouseStock, setWarehouseStock,
+          warehouseMovements, setWarehouseMovements,
+          cwsList, machines, users, addNote } = useApp();
+
+  const [tab,       setTab]       = useState("overview");
+  const [showForm,  setShowForm]  = useState(false);
+  const [mvForm,    setMvForm]    = useState(null);
+  const [filterDir, setFilterDir] = useState("all");
+
+  // Market price handled by shared CoffeeMarketWidget + useCoffeeMarket hook
+
+  // ── Blank forms ────────────────────────────────────────────────
+  const blankShip = { fromCwsId:"", grade:"Parchment", tonnes:"", lotNumber:"", gnrRefs:"", transportDetails:"", notes:"" };
+  const [form, setForm] = useState(blankShip);
+
+  const blankMv = { direction:"in", kg:"", grade:"Parchment", location:"", lotNumber:"", gnrRefs:"",
+                    driverId:"", driverName:"", plateNumber:"", notes:"", date: today() };
+
+  // ── Computed totals ────────────────────────────────────────────
+  const kgIn  = warehouseMovements.filter(m => m.direction === "in") .reduce((s,m) => s+(+m.kg||0), 0);
+  const kgOut = warehouseMovements.filter(m => m.direction === "out").reduce((s,m) => s+(+m.kg||0), 0);
+  const kgBalance = kgIn - kgOut;
+
+  const shipTonnes = warehouseStock.reduce((s,w) => s+(+w.tonnes||0), 0);
+  const pending    = warehouseStock.filter(w => w.status === "pending");
+  const confirmed  = warehouseStock.filter(w => w.status === "confirmed");
+
+  const kgBalance = kgIn - kgOut;
+
+  // ── Filtered movements ─────────────────────────────────────────
+  const movements = [...warehouseMovements]
+    .filter(m => filterDir === "all" || m.direction === filterDir)
+    .sort((a,b) => (b.date||"").localeCompare(a.date||""));
+
+  // ── Confirm shipment ───────────────────────────────────────────
   const confirmShipment = (id) => {
-    setWarehouseStock((p) => p.map((w) => w.id === id ? { ...w, status: "confirmed", confirmedBy: u.id, confirmedAt: (/* @__PURE__ */ new Date()).toISOString().replace("T", " ").slice(0, 16) } : w));
-    addNote("Warehouse shipment confirmed", "warehouse");
+    setWarehouseStock(p => p.map(w => w.id === id
+      ? { ...w, status:"confirmed", confirmedBy:u.id, confirmedAt: new Date().toISOString().replace("T"," ").slice(0,16) }
+      : w));
+    addNote("Shipment confirmed", "warehouse");
   };
-  const send = () => {
-    if (!form.fromCwsId || !form.tonnes) return;
-    setWarehouseStock((p) => [...p, { id: uid(), fromCwsId: form.fromCwsId, sentBy: u.id, date: (/* @__PURE__ */ new Date()).toISOString().split("T")[0], grade: form.grade, tonnes: parseFloat(form.tonnes), lotNumber: form.lotNumber, gnrRefs: form.gnrRefs, transportDetails: form.transportDetails, status: "pending", confirmedBy: null, confirmedAt: null, notes: form.notes }]);
-    setShowForm(false);
-    setForm({ fromCwsId: "", grade: "Parchment", tonnes: "", lotNumber: "", gnrRefs: "", transportDetails: "", notes: "" });
-    addNote("New shipment sent to warehouse", "warehouse");
+
+  // ── Save legacy shipment ───────────────────────────────────────
+  const sendShipment = () => {
+    if (!form.fromCwsId || !form.tonnes) return addNote("Station and tonnes required","warning");
+    setWarehouseStock(p => [...p, {
+      id: uid(), fromCwsId: form.fromCwsId, sentBy: u.id,
+      date: today(), grade: form.grade, tonnes: parseFloat(form.tonnes),
+      lotNumber: form.lotNumber, gnrRefs: form.gnrRefs,
+      transportDetails: form.transportDetails, status:"pending",
+      confirmedBy:null, confirmedAt:null, notes:form.notes,
+    }]);
+    setShowForm(false); setForm(blankShip);
+    addNote("Shipment sent to warehouse","warehouse");
   };
-  return <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+
+  // ── Save stock movement ────────────────────────────────────────
+  const saveMv = (f) => {
+    if (!f.kg || +f.kg <= 0)       return addNote("Enter a valid kg amount","warning");
+    if (!f.location.trim())         return addNote("Location is required","warning");
+    if (!f.driverName.trim() && !f.driverId) return addNote("Driver name or selection is required","warning");
+
+    // Auto-fill plate from machine if driver selected
+    let plate = f.plateNumber;
+    if (f.driverId && !plate) {
+      const machine = machines.find(m => m.driverId === f.driverId);
+      plate = machine?.plate || "";
+    }
+    const rec = {
+      id: uid(), direction: f.direction, kg: +f.kg, grade: f.grade,
+      location: f.location, lotNumber: f.lotNumber, gnrRefs: f.gnrRefs,
+      driverId: f.driverId || null, driverName: f.driverName,
+      plateNumber: plate, notes: f.notes, date: f.date,
+      recordedBy: u.id, recordedByName: u.name,
+    };
+    setWarehouseMovements(p => [rec, ...p]);
+    setMvForm(null);
+    addNote(`Stock ${f.direction === "in" ? "IN" : "OUT"} of ${Number(f.kg).toLocaleString()} kg recorded`, f.direction === "in" ? "success" : "warehouse");
+  };
+
+  // ── Movement form component ────────────────────────────────────
+  const MovementForm = ({ direction }) => {
+    const [f, setF] = useState({ ...blankMv, direction });
+    const sf = k => v => setF(p => ({ ...p, [k]:v }));
+    const drivers = users.filter(u => u.role === "driver");
+
+    const onDriverChange = (driverId) => {
+      const driver  = users.find(u => u.id === driverId);
+      const machine = machines.find(m => m.driverId === driverId);
+      setF(p => ({
+        ...p,
+        driverId,
+        driverName:  driver?.name  || p.driverName,
+        plateNumber: machine?.plate || p.plateNumber,
+      }));
+    };
+
+    const isIn = direction === "in";
+    const col  = isIn ? C.success : C.danger;
+
+    return <Modal title={isIn ? "📦 Stock In — Receive Stock" : "📤 Stock Out — Dispatch Stock"} onClose={() => setMvForm(null)} wide>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:12, marginBottom:12 }}>
+        {/* Date + Grade + KG */}
+        <FI label="Date" type="date" value={f.date} onChange={sf("date")} />
         <div>
-          <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.4px' }}>Warehouse</div>
-          <div style={{ fontSize: 13, color: C.textMuted }}>Parchment Stock · Shipment Tracking</div>
+          <FL>Grade</FL>
+          <select value={f.grade} onChange={e => sf("grade")(e.target.value)} style={selS()}>
+            {["Parchment","Green","Fully Washed","Natural","Honey"].map(g=><option key={g}>{g}</option>)}
+          </select>
         </div>
-        {canSendToWarehouse(u.role) && <button onClick={() => setShowForm(true)} style={{ ...BtnS(C.gold), padding: "8px 16px", fontSize: 12 }}>+ Send to Warehouse</button>}
+        <FI label="Quantity (kg)" type="number" value={f.kg} onChange={sf("kg")} placeholder="e.g. 1500" />
+
+        {/* Location */}
+        <FI label={isIn ? "Coming From (Location / Station)" : "Going To (Destination)"}
+            value={f.location} onChange={sf("location")}
+            placeholder={isIn ? "e.g. Nyamasheke CWS" : "e.g. Kigali Export Hub"} />
+
+        {/* Lot + GNR */}
+        <FI label="Lot Number" value={f.lotNumber} onChange={sf("lotNumber")} placeholder="LOT-XXX-001" />
+        <FI label="GNR References" value={f.gnrRefs} onChange={sf("gnrRefs")} placeholder="GNR-MSZ-0001" />
+
+        {/* Driver — pick from list or type manually */}
+        <div>
+          <FL>Driver (select from system)</FL>
+          <select value={f.driverId} onChange={e => onDriverChange(e.target.value)} style={selS()}>
+            <option value="">— Manual entry below —</option>
+            {drivers.map(d => {
+              const m = machines.find(m => m.driverId === d.id);
+              return <option key={d.id} value={d.id}>{d.name}{m ? ` · ${m.plate}` : ""}</option>;
+            })}
+          </select>
+        </div>
+        <FI label="Driver Name (or override)" value={f.driverName} onChange={sf("driverName")} placeholder="Full name" />
+        <FI label="Car Plate Number" value={f.plateNumber} onChange={sf("plateNumber")} placeholder="e.g. RAC 123A" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 20 }}>
-        <SC label="Total Tonnes" value={totalTonnes.toFixed(2) + " T"} color={C.gold} />
-        <SC label="Pending Confirmation" value={pending.length} color={C.warning} />
-        <SC label="Confirmed" value={confirmed.length} color={C.success} />
-      </div>
-      {pending.length > 0 && canConfirmWarehouse(u.role) && <div style={{ marginBottom: 18, background: C.gradCard, border: `1px solid ${C.warning}40`, borderRadius: 12, overflow: "hidden" }}>
-          <div style={{ padding: "11px 16px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, fontSize: 13, color: C.warning }}>Pending Confirmation</div>
-          {pending.map((w) => {
-    const cws = cwsList.find((c) => c.id === w.fromCwsId);
-    return <div key={w.id} style={{ padding: "11px 16px", borderBottom: `1px solid ${C.border}15`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{w.lotNumber || "No Lot #"} · {cws?.name}</div>
-                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{w.date} · {w.tonnes} T {w.grade}</div>
-                </div>
-                <button onClick={() => confirmShipment(w.id)} style={{ ...BtnS(C.success), padding: "6px 14px", fontSize: 11 }}>Confirm</button>
-              </div>;
-  })}
-        </div>}
-      <div style={{ background: C.gradCard, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ padding: "11px 16px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, fontSize: 13 }}>All Shipments ({warehouseStock.length})</div>
-        {warehouseStock.length === 0 ? <ES text="No shipments yet" /> : <div className="tbl-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr style={{ background: C.surface }}>{["Date", "Station", "Lot #", "Grade", "Tonnes", "Status", "Confirmed At"].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
-          <tbody>{warehouseStock.map((w) => {
-    const cws = cwsList.find((c) => c.id === w.fromCwsId);
-    return <tr key={w.id} style={{ borderBottom: `1px solid ${C.border}15` }} onMouseEnter={(e) => e.currentTarget.style.background = C.surface} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                <Td style={{ color: C.textMuted }}>{w.date}</Td>
-                <Td style={{ color: C.coffeeLight, fontWeight: 600 }}>{cws?.name || w.fromCwsId}</Td>
-                <Td style={{ color: C.gold, fontWeight: 700 }}>{w.lotNumber || "\u2014"}</Td>
-                <Td>{w.grade}</Td>
-                <Td style={{ fontWeight: 700, color: C.info }}>{w.tonnes} T</Td>
-                <Td><SB status={w.status} /></Td>
-                <Td style={{ color: C.textDim, fontSize: 11 }}>{w.confirmedAt?.split(" ")[0] || "\u2014"}</Td>
-              </tr>;
-  })}</tbody>
-        </table></div>}
-      </div>
-      {showForm && <Modal title="Send Stock to Warehouse" onClose={() => setShowForm(false)} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
-            <div><FL>From Station</FL><select value={form.fromCwsId} onChange={(e) => setForm((p) => ({ ...p, fromCwsId: e.target.value }))} style={selS()}><option value="">— Select —</option>{cwsList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-            <div><FL>Grade</FL><select value={form.grade} onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))} style={selS()}><option>Parchment</option><option>Green</option></select></div>
-            <FI label="Tonnes" type="number" value={form.tonnes} onChange={(v) => setForm((p) => ({ ...p, tonnes: v }))} placeholder="e.g. 2.5" />
-            <FI label="Lot Number" value={form.lotNumber} onChange={(v) => setForm((p) => ({ ...p, lotNumber: v }))} placeholder="LOT-XXX-001" />
-            <FI label="GNR References" value={form.gnrRefs} onChange={(v) => setForm((p) => ({ ...p, gnrRefs: v }))} placeholder="GNR-MSZ-0001" />
-            <FI label="Transport Details" value={form.transportDetails} onChange={(v) => setForm((p) => ({ ...p, transportDetails: v }))} placeholder="Truck plate RAC..." />
+      <FI label="Notes" value={f.notes} onChange={sf("notes")} placeholder="Optional — any additional details" />
+      <MF onCancel={() => setMvForm(null)} onSave={() => saveMv(f)}
+          label={isIn ? "Record Stock In" : "Record Stock Out"} color={col} />
+    </Modal>;
+  };
+
+  // ── Direction badge ────────────────────────────────────────────
+  const DirBadge = ({ dir }) => (
+    <span style={{
+      background: dir==="in" ? `${C.success}20` : `${C.danger}20`,
+      color:      dir==="in" ? C.success         : C.danger,
+      border:    `1px solid ${dir==="in" ? C.success : C.danger}44`,
+      borderRadius: 20, padding:"2px 10px", fontSize:10, fontWeight:700,
+    }}>{dir==="in" ? "▲ IN" : "▼ OUT"}</span>
+  );
+
+  // ── TAB: OVERVIEW ──────────────────────────────────────────────
+  const TabOverview = () => (
+    <div>
+      <CoffeeMarketWidget kgBalance={kgBalance} />
+      {/* KPI cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:12, marginBottom:20 }}>
+        {[
+          ["Total In",     Number(kgIn).toLocaleString()+" kg",      C.success],
+          ["Total Out",    Number(kgOut).toLocaleString()+" kg",     C.danger],
+          ["Balance",      Number(kgBalance).toLocaleString()+" kg", kgBalance>=0?C.gold:C.danger],
+          ["Shipments",    shipTonnes.toFixed(2)+" T",               C.info],
+          ["Pending Conf.",pending.length,                            C.warning],
+        ].map(([label, val, col]) => (
+          <div key={label} style={{ background:C.gradCard, border:`1px solid ${col}22`, borderRadius:12, padding:"13px 15px" }}>
+            <div style={{ fontSize:10, color:C.textDim, marginBottom:4 }}>{label}</div>
+            <div style={{ fontSize:15, fontWeight:800, color:col }}>{val}</div>
           </div>
-          <div style={{ marginTop: 12 }}><FI label="Notes" value={form.notes} onChange={(v) => setForm((p) => ({ ...p, notes: v }))} placeholder="Optional" /></div>
-          <MF onCancel={() => setShowForm(false)} onSave={send} label="Send to Warehouse" color={C.gold} />
-        </Modal>}
-    </div>;
+        ))}
+      </div>
+
+      {/* Pending shipments needing confirmation */}
+      {pending.length > 0 && canConfirmWarehouse(u.role) && (
+        <div style={{ marginBottom:18, background:C.gradCard, border:`1px solid ${C.warning}40`, borderRadius:12, overflow:"hidden" }}>
+          <div style={{ padding:"11px 16px", borderBottom:`1px solid ${C.border}`, fontWeight:700, fontSize:13, color:C.warning }}>
+            ⏳ Pending Confirmation ({pending.length})
+          </div>
+          {pending.map(w => {
+            const cws = cwsList.find(c => c.id === w.fromCwsId);
+            return <div key={w.id} style={{ padding:"11px 16px", borderBottom:`1px solid ${C.border}15`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:600, fontSize:13 }}>{w.lotNumber||"No Lot #"} · {cws?.name}</div>
+                <div style={{ fontSize:11, color:C.textMuted, marginTop:2 }}>{w.date} · {w.tonnes} T {w.grade}</div>
+              </div>
+              <button onClick={() => confirmShipment(w.id)} style={{ ...BtnS(C.success), padding:"6px 14px", fontSize:11 }}>Confirm</button>
+            </div>;
+          })}
+        </div>
+      )}
+
+      {/* Recent movements summary */}
+      <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
+        <div style={{ padding:"11px 16px", borderBottom:`1px solid ${C.border}`, fontWeight:700, fontSize:13, display:"flex", justifyContent:"space-between" }}>
+          <span>Recent Movements</span>
+          <button onClick={() => setTab("movements")} style={{ fontSize:11, color:C.gold, background:"transparent", border:"none", cursor:"pointer" }}>View all →</button>
+        </div>
+        {warehouseMovements.length === 0
+          ? <div style={{ padding:"24px", textAlign:"center", color:C.textDim, fontSize:12 }}>No movements yet. Record stock in or out.</div>
+          : <div className="tbl-wrap">
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr style={{ background:C.surface }}>
+                  {["Date","Direction","Grade","Kg","Location","Driver","Plate"].map(h=><Th key={h}>{h}</Th>)}
+                </tr></thead>
+                <tbody>
+                  {[...warehouseMovements].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,8).map(m => (
+                    <tr key={m.id} style={{ borderBottom:`1px solid ${C.border}15` }}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.surface}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <Td style={{ color:C.textMuted }}>{m.date}</Td>
+                      <Td><DirBadge dir={m.direction} /></Td>
+                      <Td>{m.grade}</Td>
+                      <Td style={{ fontWeight:700, color:m.direction==="in"?C.success:C.danger }}>{Number(m.kg).toLocaleString()}</Td>
+                      <Td style={{ maxWidth:140, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.location}</Td>
+                      <Td>{m.driverName||"—"}</Td>
+                      <Td style={{ color:C.gold, fontWeight:600 }}>{m.plateNumber||"—"}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+        }
+      </div>
+    </div>
+  );
+
+  // ── TAB: FULL MOVEMENT LOG ─────────────────────────────────────
+  const TabMovements = () => (
+    <div>
+      <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+        {[["all","All"],["in","Stock In"],["out","Stock Out"]].map(([key,label]) => (
+          <button key={key} onClick={() => setFilterDir(key)}
+            style={{ ...BtnS(filterDir===key?(key==="in"?C.success:key==="out"?C.danger:C.gold):C.border, filterDir!==key, filterDir!==key), fontSize:11, padding:"5px 13px" }}>
+            {label} <span style={{ marginLeft:4, fontSize:9 }}>({warehouseMovements.filter(m=>key==="all"||m.direction===key).length})</span>
+          </button>
+        ))}
+        <div style={{ marginLeft:"auto", fontSize:12, color:C.textMuted }}>
+          Balance: <span style={{ fontWeight:700, color: kgBalance>=0?C.success:C.danger }}>{Number(kgBalance).toLocaleString()} kg</span>
+        </div>
+      </div>
+      {movements.length === 0
+        ? <div style={{ textAlign:"center", padding:"48px", color:C.textDim, fontSize:13 }}>No movements match this filter.</div>
+        : <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
+            <div className="tbl-wrap">
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr style={{ background:C.surface }}>
+                  {["Date","Dir","Grade","Kg","Location","Lot #","GNR Refs","Driver","Plate","Recorded By"].map(h=><Th key={h}>{h}</Th>)}
+                </tr></thead>
+                <tbody>
+                  {movements.map(m => (
+                    <tr key={m.id} style={{ borderBottom:`1px solid ${C.border}15` }}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.surface}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <Td style={{ color:C.textMuted, whiteSpace:"nowrap" }}>{m.date}</Td>
+                      <Td><DirBadge dir={m.direction} /></Td>
+                      <Td>{m.grade}</Td>
+                      <Td style={{ fontWeight:700, color:m.direction==="in"?C.success:C.danger }}>{Number(m.kg).toLocaleString()}</Td>
+                      <Td style={{ maxWidth:160 }}>{m.location}</Td>
+                      <Td style={{ color:C.gold }}>{m.lotNumber||"—"}</Td>
+                      <Td style={{ color:C.textDim, fontSize:11 }}>{m.gnrRefs||"—"}</Td>
+                      <Td>{m.driverName||"—"}</Td>
+                      <Td style={{ color:C.gold, fontWeight:600 }}>{m.plateNumber||"—"}</Td>
+                      <Td style={{ color:C.textDim, fontSize:11 }}>{m.recordedByName||"—"}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+      }
+    </div>
+  );
+
+  // ── TAB: SHIPMENTS (legacy) ────────────────────────────────────
+  const TabShipments = () => (
+    <div>
+      <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
+        <div style={{ padding:"11px 16px", borderBottom:`1px solid ${C.border}`, fontWeight:700, fontSize:13 }}>
+          All Shipments ({warehouseStock.length})
+        </div>
+        {warehouseStock.length === 0
+          ? <div style={{ padding:"32px", textAlign:"center", color:C.textDim, fontSize:12 }}>No shipments yet.</div>
+          : <div className="tbl-wrap">
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr style={{ background:C.surface }}>
+                  {["Date","Station","Lot #","Grade","Tonnes","Status","Confirmed At"].map(h=><Th key={h}>{h}</Th>)}
+                </tr></thead>
+                <tbody>
+                  {warehouseStock.map(w => {
+                    const cws = cwsList.find(c => c.id === w.fromCwsId);
+                    return <tr key={w.id} style={{ borderBottom:`1px solid ${C.border}15` }}
+                               onMouseEnter={e=>e.currentTarget.style.background=C.surface}
+                               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <Td style={{ color:C.textMuted }}>{w.date}</Td>
+                      <Td style={{ color:C.coffeeLight, fontWeight:600 }}>{cws?.name||w.fromCwsId}</Td>
+                      <Td style={{ color:C.gold, fontWeight:700 }}>{w.lotNumber||"—"}</Td>
+                      <Td>{w.grade}</Td>
+                      <Td style={{ fontWeight:700, color:C.info }}>{w.tonnes} T</Td>
+                      <Td><SB status={w.status} /></Td>
+                      <Td style={{ color:C.textDim, fontSize:11 }}>{w.confirmedAt?.split(" ")[0]||"—"}</Td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
+            </div>
+        }
+      </div>
+    </div>
+  );
+
+  // ── RENDER ─────────────────────────────────────────────────────
+  return <div>
+    {/* Header */}
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18, flexWrap:"wrap", gap:10 }}>
+      <div>
+        <div style={{ fontFamily:"'Inter',sans-serif", fontSize:22, fontWeight:700, color:C.text, letterSpacing:"-0.4px" }}>Warehouse</div>
+        <div style={{ fontSize:13, color:C.textMuted }}>Stock Movements · Shipment Tracking</div>
+      </div>
+      <div style={{ display:"flex", gap:8 }}>
+        {canSendToWarehouse(u.role) && <>
+          <button onClick={() => setMvForm("in")}  style={{ ...BtnS(C.success), padding:"8px 14px", fontSize:12 }}>▲ Stock In</button>
+          <button onClick={() => setMvForm("out")} style={{ ...BtnS(C.danger),  padding:"8px 14px", fontSize:12 }}>▼ Stock Out</button>
+        </>}
+        {canSendToWarehouse(u.role) && <button onClick={() => setShowForm(true)} style={{ ...BtnS(C.gold,false,true), padding:"8px 14px", fontSize:12 }}>+ Shipment</button>}
+      </div>
+    </div>
+
+    {/* Tabs */}
+    <div style={{ display:"flex", gap:4, marginBottom:18, borderBottom:`1px solid ${C.border}`, paddingBottom:0 }}>
+      {[["overview","Overview"],["movements","Movement Log"],["shipments","Shipments"]].map(([key,label]) => (
+        <button key={key} onClick={() => setTab(key)} style={{
+          padding:"8px 16px", fontSize:12, fontWeight: tab===key?700:400,
+          background:"transparent", border:"none", cursor:"pointer",
+          color: tab===key ? C.gold : C.textMuted,
+          borderBottom: tab===key ? `2px solid ${C.gold}` : "2px solid transparent",
+          marginBottom:-1, transition:"all .15s",
+        }}>{label}</button>
+      ))}
+    </div>
+
+    {/* Tab content */}
+    {tab === "overview"  && <TabOverview />}
+    {tab === "movements" && <TabMovements />}
+    {tab === "shipments" && <TabShipments />}
+
+    {/* Legacy shipment form */}
+    {showForm && <Modal title="Send Stock to Warehouse" onClose={() => setShowForm(false)} wide>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12 }}>
+        <div><FL>From Station</FL><select value={form.fromCwsId} onChange={e=>setForm(p=>({...p,fromCwsId:e.target.value}))} style={selS()}><option value="">— Select —</option>{cwsList.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+        <div><FL>Grade</FL><select value={form.grade} onChange={e=>setForm(p=>({...p,grade:e.target.value}))} style={selS()}><option>Parchment</option><option>Green</option></select></div>
+        <FI label="Tonnes" type="number" value={form.tonnes} onChange={v=>setForm(p=>({...p,tonnes:v}))} placeholder="e.g. 2.5" />
+        <FI label="Lot Number" value={form.lotNumber} onChange={v=>setForm(p=>({...p,lotNumber:v}))} placeholder="LOT-XXX-001" />
+        <FI label="GNR References" value={form.gnrRefs} onChange={v=>setForm(p=>({...p,gnrRefs:v}))} placeholder="GNR-MSZ-0001" />
+        <FI label="Transport Details" value={form.transportDetails} onChange={v=>setForm(p=>({...p,transportDetails:v}))} placeholder="Truck plate RAC..." />
+      </div>
+      <div style={{ marginTop:12 }}><FI label="Notes" value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="Optional" /></div>
+      <MF onCancel={() => setShowForm(false)} onSave={sendShipment} label="Send to Warehouse" color={C.gold} />
+    </Modal>}
+
+    {/* Movement form */}
+    {mvForm && <MovementForm direction={mvForm} />}
+  </div>;
 }
 
-function ReportsPage() {
+// ═══════════════════════════════════════════════════════════════════════════
+// FIELD FUND REQUISITION PAGE — HQ Staff only
+// Workflow: HQ Staff submits → Finance approves → MD releases cheque
+// ═══════════════════════════════════════════════════════════════════════════
+function FieldRequisitionPage() {
+  const { currentUser: u, fundRequests, setFundRequests, users, addNote } = useApp();
+  // Filter to only HQ field requisitions (type === "hq_field_req")
+  const reqs = fundRequests.filter(f => f.type === "hq_field_req");
+
+  const [tab, setTab] = useState("list");       // "list" | "new"
+  const [approveModal, setApproveModal] = useState(null);
+  const [releaseModal, setReleaseModal] = useState(null);
+  const [rejectModal, setRejectModal]   = useState(null);
+  const [approveNotes, setApproveNotes] = useState("");
+  const [releaseForm, setReleaseForm]   = useState({ chequeNo: "", amount: "", method: "cheque", notes: "" });
+  const [rejectNotes, setRejectNotes]   = useState("");
+
+  const DEPTS = ["Operations (OP)", "IT", "Finance", "MD Office"];
+  const METHODS = ["cheque", "bank_transfer", "cash", "mobile_money"];
+
+  const emptyForm = { dept: DEPTS[0], requestedBy: u.name, activity: "", destination: "", purpose: "", travelDates: "", items: Array.from({length:5},()=>({desc:"",qty:"",unit:"",total:""})) };
+  const [form, setForm] = useState(emptyForm);
+
+  // ── Compute totals ──────────────────────────────────────────────
+  const itemsTotal = form.items.reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+
+  // ── Submit new requisition ───────────────────────────────────────
+  const submitReq = () => {
+    if (!form.activity || !form.purpose) { return addNote("Please fill Activity and Purpose fields", "warning"); }
+    const items = form.items.filter(r => r.desc && r.total);
+    if (!items.length) { return addNote("Add at least one budget item", "warning"); }
+    const total = items.reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+    const rec = {
+      id: uid(), type: "hq_field_req", cwsId: null,
+      dept: form.dept, requestedBy: u.id, requestedByName: u.name,
+      activity: form.activity, destination: form.destination,
+      purpose: form.purpose, travelDates: form.travelDates,
+      items, amount: total,
+      status: "pending_finance_approval",
+      requestedAt: new Date().toLocaleString(),
+      financeApprovedBy: null, financeApprovedAt: null, financeNotes: "",
+      chequeReleasedBy: null, chequeReleasedAt: null, chequeNo: "", releaseMethod: "", releaseNotes: "",
+      reason: form.purpose,
+    };
+    setFundRequests(p => [rec, ...p]);
+    addNote("Field requisition submitted — awaiting Finance approval", "success");
+    setForm(emptyForm);
+    setTab("list");
+  };
+
+  // ── Finance approves ─────────────────────────────────────────────
+  const doApprove = (id) => {
+    setFundRequests(p => p.map(f => f.id === id ? {
+      ...f, status: "pending_md_release",
+      financeApprovedBy: u.id, financeApprovedAt: new Date().toLocaleString(), financeNotes: approveNotes
+    } : f));
+    setApproveModal(null); setApproveNotes("");
+    addNote("Requisition approved by Finance — forwarded to MD for cheque release", "success");
+  };
+
+  // ── MD releases cheque ───────────────────────────────────────────
+  const doRelease = (id) => {
+    if (!releaseForm.chequeNo || !releaseForm.amount) { return addNote("Enter cheque number and amount", "warning"); }
+    setFundRequests(p => p.map(f => f.id === id ? {
+      ...f, status: "cheque_released",
+      chequeReleasedBy: u.id, chequeReleasedAt: new Date().toLocaleString(),
+      chequeNo: releaseForm.chequeNo, amount: parseFloat(releaseForm.amount)||f.amount,
+      releaseMethod: releaseForm.method, releaseNotes: releaseForm.notes
+    } : f));
+    setReleaseModal(null); setReleaseForm({ chequeNo:"", amount:"", method:"cheque", notes:"" });
+    addNote("Cheque released — requisition complete", "success");
+  };
+
+  // ── Reject ───────────────────────────────────────────────────────
+  const doReject = (id) => {
+    setFundRequests(p => p.map(f => f.id === id ? { ...f, status: "rejected", financeNotes: rejectNotes } : f));
+    setRejectModal(null); setRejectNotes("");
+    addNote("Requisition rejected", "warning");
+  };
+
+  // ── Status badge helper ──────────────────────────────────────────
+  const STATUS_META = {
+    pending_finance_approval: { label: "Awaiting Finance",  col: C.warning },
+    pending_md_release:       { label: "Awaiting MD Release", col: C.gold },
+    cheque_released:          { label: "Cheque Released",   col: C.success },
+    rejected:                 { label: "Rejected",          col: C.danger },
+  };
+  const STag = ({ status }) => {
+    const m = STATUS_META[status] || { label: status, col: C.textMuted };
+    return <span style={{ background: m.col+"22", color: m.col, border:`1px solid ${m.col}44`, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:700 }}>{m.label}</span>;
+  };
+
+  const grouped = { pending_finance_approval:[], pending_md_release:[], cheque_released:[], rejected:[] };
+  reqs.forEach(r => { if(grouped[r.status]) grouped[r.status].push(r); });
+
+  // ── Card component ───────────────────────────────────────────────
+  const ReqCard = ({ req }) => {
+    const reqByUser = users.find(uu => uu.id === req.requestedBy);
+    const finUser   = users.find(uu => uu.id === req.financeApprovedBy);
+    const mdUser    = users.find(uu => uu.id === req.chequeReleasedBy);
+    return <div style={{ background: C.gradCard, border:`1px solid ${(STATUS_META[req.status]||{}).col||C.border}28`, borderRadius:12, padding:"16px 18px", marginBottom:12 }}>
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:10 }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontWeight:700, fontSize:14, color:C.text, marginBottom:2 }}>{req.activity || "—"}</div>
+          <div style={{ fontSize:12, color:C.textMuted, marginBottom:2 }}>{req.dept} · {req.destination || "No location"}</div>
+          <div style={{ fontSize:11, color:C.textDim }}>By {req.requestedByName || reqByUser?.name || "—"} · {req.requestedAt}</div>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+          <STag status={req.status} />
+          <div style={{ fontWeight:700, color:C.goldLight, fontSize:15 }}>{fmtRWF(req.amount)}</div>
+        </div>
+      </div>
+      <div style={{ fontSize:11, color:C.textMuted, marginBottom:10 }}>{req.purpose}</div>
+      {req.items?.length > 0 && <div style={{ background:`${C.surface}`, borderRadius:8, padding:"8px 10px", marginBottom:10, fontSize:11 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 80px 80px", gap:4, fontWeight:700, color:C.textDim, marginBottom:4 }}>
+          <span>Item</span><span style={{textAlign:"center"}}>Qty</span><span style={{textAlign:"right"}}>Unit</span><span style={{textAlign:"right"}}>Total</span>
+        </div>
+        {req.items.map((it,i) => <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 60px 80px 80px", gap:4, color:C.text, padding:"2px 0", borderTop:`1px solid ${C.border}` }}>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.desc}</span>
+          <span style={{textAlign:"center"}}>{it.qty}</span>
+          <span style={{textAlign:"right"}}>{Number(it.unit||0).toLocaleString()}</span>
+          <span style={{textAlign:"right",fontWeight:600}}>{Number(it.total||0).toLocaleString()}</span>
+        </div>)}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", gap:4, marginTop:6, paddingTop:6, borderTop:`2px solid ${C.gold}40` }}>
+          <span style={{fontWeight:700, color:C.text}}>Total</span>
+          <span style={{textAlign:"right", fontWeight:700, color:C.goldLight}}>{fmtRWF(req.amount)}</span>
+        </div>
+      </div>}
+      {req.financeApprovedBy && <div style={{ fontSize:11, color:C.success, marginBottom:4 }}>✓ Finance approved by {finUser?.name||"—"} · {req.financeApprovedAt}{req.financeNotes ? ` — "${req.financeNotes}"` : ""}</div>}
+      {req.chequeReleasedBy  && <div style={{ fontSize:11, color:C.gold,    marginBottom:4 }}>✓ Cheque #{req.chequeNo} released by {mdUser?.name||"—"} · {req.chequeReleasedAt} · {req.releaseMethod}</div>}
+      {req.status === "rejected" && req.financeNotes && <div style={{ fontSize:11, color:C.danger, marginBottom:4 }}>✕ Rejected: {req.financeNotes}</div>}
+      <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
+        {req.status === "pending_finance_approval" && canApproveFieldReq(u.role) && <>
+          <button onClick={() => { setApproveModal(req.id); setApproveNotes(""); }} style={{ ...BtnS(C.success), fontSize:11, padding:"5px 12px" }}>✓ Approve (Finance)</button>
+          <button onClick={() => { setRejectModal(req.id); setRejectNotes(""); }} style={{ ...BtnS(C.danger,false,true), fontSize:11, padding:"5px 12px" }}>✕ Reject</button>
+        </>}
+        {req.status === "pending_md_release" && canReleaseFieldCheque(u.role) && <>
+          <button onClick={() => { setReleaseModal(req.id); setReleaseForm({ chequeNo:"", amount: String(req.amount), method:"cheque", notes:"" }); }} style={{ ...BtnS(C.gold), fontSize:11, padding:"5px 12px" }}>💳 Release Cheque (MD)</button>
+          <button onClick={() => { setRejectModal(req.id); setRejectNotes(""); }} style={{ ...BtnS(C.danger,false,true), fontSize:11, padding:"5px 12px" }}>✕ Reject</button>
+        </>}
+      </div>
+    </div>;
+  };
+
+  // ── Update item row ──────────────────────────────────────────────
+  const setItem = (i, field, val) => {
+    setForm(p => {
+      const items = [...p.items];
+      items[i] = { ...items[i], [field]: val };
+      if (field === "qty" || field === "unit") {
+        const qty  = parseFloat(field==="qty"  ? val : items[i].qty)  || 0;
+        const unit = parseFloat(field==="unit" ? val : items[i].unit) || 0;
+        items[i].total = qty && unit ? String(qty * unit) : items[i].total;
+      }
+      return { ...p, items };
+    });
+  };
+
+  const pendingCount = grouped.pending_finance_approval.length + grouped.pending_md_release.length;
+
+  return <div>
+    {/* Header */}
+    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, flexWrap:"wrap" }}>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontFamily:"'Inter',sans-serif", fontSize:20, fontWeight:700, color:C.goldLight, letterSpacing:"-0.3px" }}>Field Fund Requisition</div>
+        <div style={{ fontSize:12, color:C.textMuted }}>HQ Staff · Submit → Finance Approval → MD Cheque Release</div>
+      </div>
+      {canSubmitFieldReq(u.role) && <button onClick={() => setTab(tab==="new" ? "list" : "new")} style={{ ...BtnS(tab==="new" ? C.border : C.gold, tab==="new"), padding:"8px 16px", fontSize:12 }}>
+        {tab==="new" ? "← Cancel" : "+ New Requisition"}
+      </button>}
+    </div>
+
+    {/* Workflow strip */}
+    <div style={{ display:"flex", gap:8, marginBottom:20, alignItems:"center", flexWrap:"wrap" }}>
+      {[["1. HQ Staff","Submits requisition",C.info],["→",null,C.textDim],["2. Finance","Reviews & approves",C.warning],["→",null,C.textDim],["3. MD","Releases cheque",C.gold]].map((item,i) =>
+        item[0]==="→"
+          ? <span key={i} style={{ fontSize:18, color:item[2] }}>→</span>
+          : <div key={i} style={{ background:C.gradCard, border:`1px solid ${item[2]}30`, borderRadius:10, padding:"10px 14px", minWidth:140 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:item[2] }}>{item[0]}</div>
+              <div style={{ fontSize:10, color:C.textMuted, marginTop:2 }}>{item[1]}</div>
+            </div>
+      )}
+      {pendingCount > 0 && <span style={{ marginLeft:"auto", background:`${C.warning}20`, color:C.warning, border:`1px solid ${C.warning}44`, borderRadius:20, padding:"4px 12px", fontSize:11, fontWeight:700 }}>⏳ {pendingCount} Pending</span>}
+    </div>
+
+    {/* New Requisition Form */}
+    {tab === "new" && canSubmitFieldReq(u.role) && <div style={{ background:C.gradCard, border:`1px solid ${C.gold}28`, borderRadius:14, padding:"20px 20px 16px", marginBottom:20 }}>
+      <div style={{ fontWeight:700, fontSize:15, color:C.goldLight, marginBottom:16 }}>📋 New Field Requisition</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:12, marginBottom:14 }}>
+        <div>
+          <FL>Department / Role</FL>
+          <select value={form.dept} onChange={e => setForm(p=>({...p,dept:e.target.value}))} style={selS()}>
+            {DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <FI label="Activity / Project Name" value={form.activity}     onChange={v=>setForm(p=>({...p,activity:v}))}     placeholder="e.g. Field monitoring visit" />
+        <FI label="Destination / Location"  value={form.destination}  onChange={v=>setForm(p=>({...p,destination:v}))}  placeholder="e.g. Nyamasheke" />
+        <FI label="Expected Travel Dates"   value={form.travelDates}  onChange={v=>setForm(p=>({...p,travelDates:v}))}  placeholder="e.g. 02–05 Jun 2025" />
+        <div style={{ gridColumn:"1/-1" }}>
+          <FI label="Purpose / Justification" value={form.purpose} onChange={v=>setForm(p=>({...p,purpose:v}))} placeholder="Describe the purpose of this field visit and why funds are needed" />
+        </div>
+      </div>
+
+      {/* Budget table */}
+      <div style={{ fontWeight:600, fontSize:13, color:C.text, marginBottom:8 }}>Budget Breakdown</div>
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead>
+            <tr style={{ background:C.surface }}>
+              {["#","Expense Item","Qty","Unit Cost (RWF)","Total (RWF)"].map(h =>
+                <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:C.textMuted, borderBottom:`2px solid ${C.border}`, whiteSpace:"nowrap" }}>{h}</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {form.items.map((item,i) => <tr key={i} style={{ borderBottom:`1px solid ${C.border}` }}>
+              <td style={{ padding:"6px 10px", color:C.textDim, width:28 }}>{i+1}</td>
+              <td style={{ padding:"4px 6px" }}><input value={item.desc}  onChange={e=>setItem(i,"desc",e.target.value)}  placeholder="Description" style={{ ...inpS(), margin:0 }} /></td>
+              <td style={{ padding:"4px 6px", width:80 }}><input value={item.qty}   onChange={e=>setItem(i,"qty",e.target.value)}   placeholder="0" type="number" min="0" style={{ ...inpS(), margin:0, textAlign:"right" }} /></td>
+              <td style={{ padding:"4px 6px", width:130 }}><input value={item.unit}  onChange={e=>setItem(i,"unit",e.target.value)}  placeholder="0" type="number" min="0" style={{ ...inpS(), margin:0, textAlign:"right" }} /></td>
+              <td style={{ padding:"4px 6px", width:130 }}><input value={item.total} onChange={e=>setItem(i,"total",e.target.value)} placeholder="0" type="number" min="0" style={{ ...inpS(), margin:0, textAlign:"right", fontWeight:600 }} /></td>
+            </tr>)}
+          </tbody>
+          <tfoot>
+            <tr style={{ background:`${C.gold}10`, borderTop:`2px solid ${C.gold}40` }}>
+              <td colSpan={4} style={{ padding:"10px 10px", fontWeight:700, color:C.text, textAlign:"right" }}>Total Amount Requested</td>
+              <td style={{ padding:"10px 10px", fontWeight:700, color:C.goldLight, textAlign:"right" }}>{fmtRWF(itemsTotal)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div style={{ marginTop:16, display:"flex", justifyContent:"flex-end", gap:10 }}>
+        <button onClick={() => { setTab("list"); setForm(emptyForm); }} style={{ ...BtnS(C.border,false,true), fontSize:12, padding:"8px 16px" }}>Cancel</button>
+        <button onClick={submitReq} style={{ ...BtnS(C.gold), fontSize:12, padding:"8px 18px" }}>Submit Requisition →</button>
+      </div>
+    </div>}
+
+    {/* Lists */}
+    {tab === "list" && <>
+      {reqs.length === 0 && <div style={{ textAlign:"center", padding:"48px 20px", color:C.textMuted, fontSize:13 }}>
+        <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+        No requisitions yet.{canSubmitFieldReq(u.role) ? " Click "+ New Requisition" to create one." : ""}
+      </div>}
+
+      {grouped.pending_finance_approval.length > 0 && <div style={{ marginBottom:16 }}>
+        <div style={{ fontWeight:700, fontSize:13, color:C.warning, marginBottom:10 }}>⏳ Awaiting Finance Approval ({grouped.pending_finance_approval.length})</div>
+        {grouped.pending_finance_approval.map(r => <ReqCard key={r.id} req={r} />)}
+      </div>}
+
+      {grouped.pending_md_release.length > 0 && <div style={{ marginBottom:16 }}>
+        <div style={{ fontWeight:700, fontSize:13, color:C.gold, marginBottom:10 }}>💳 Awaiting MD Cheque Release ({grouped.pending_md_release.length})</div>
+        {grouped.pending_md_release.map(r => <ReqCard key={r.id} req={r} />)}
+      </div>}
+
+      {grouped.cheque_released.length > 0 && <div style={{ marginBottom:16 }}>
+        <div style={{ fontWeight:700, fontSize:13, color:C.success, marginBottom:10 }}>✅ Cheque Released ({grouped.cheque_released.length})</div>
+        {grouped.cheque_released.map(r => <ReqCard key={r.id} req={r} />)}
+      </div>}
+
+      {grouped.rejected.length > 0 && <div style={{ marginBottom:16 }}>
+        <div style={{ fontWeight:700, fontSize:13, color:C.danger, marginBottom:10 }}>✕ Rejected ({grouped.rejected.length})</div>
+        {grouped.rejected.map(r => <ReqCard key={r.id} req={r} />)}
+      </div>}
+    </>}
+
+    {/* Finance Approval Modal */}
+    {approveModal && <Modal title="Finance Approval" onClose={() => setApproveModal(null)}>
+      <Alert text="Approving this requisition will forward it to the Managing Director to release the cheque." color={C.warning} />
+      <div style={{ marginTop:12 }}><FI label="Approval Notes (optional)" value={approveNotes} onChange={setApproveNotes} placeholder="Any notes for the MD..." /></div>
+      <MF onCancel={() => setApproveModal(null)} onSave={() => doApprove(approveModal)} label="✓ Approve & Forward to MD" color={C.success} />
+    </Modal>}
+
+    {/* MD Cheque Release Modal */}
+    {releaseModal && <Modal title="MD — Release Cheque" onClose={() => setReleaseModal(null)}>
+      <Alert text="Record the cheque details. This action marks the requisition as fully disbursed." color={C.gold} />
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:11, marginTop:12 }}>
+        <FI label="Cheque Number"        value={releaseForm.chequeNo} onChange={v=>setReleaseForm(p=>({...p,chequeNo:v}))} placeholder="e.g. CHQ-0042" />
+        <FI label="Amount Released (RWF)" value={releaseForm.amount}  onChange={v=>setReleaseForm(p=>({...p,amount:v}))}   placeholder="Amount" type_="number" />
+        <div>
+          <FL>Payment Method</FL>
+          <select value={releaseForm.method} onChange={e=>setReleaseForm(p=>({...p,method:e.target.value}))} style={selS()}>
+            {METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g," ")}</option>)}
+          </select>
+        </div>
+        <div style={{ gridColumn:"1/-1" }}>
+          <FI label="Release Notes (optional)" value={releaseForm.notes} onChange={v=>setReleaseForm(p=>({...p,notes:v}))} placeholder="Any notes..." />
+        </div>
+      </div>
+      <MF onCancel={() => setReleaseModal(null)} onSave={() => doRelease(releaseModal)} label="💳 Confirm Cheque Release" color={C.gold} />
+    </Modal>}
+
+    {/* Reject Modal */}
+    {rejectModal && <Modal title="Reject Requisition" onClose={() => setRejectModal(null)}>
+      <Alert text="The requester will see this rejection. Provide a clear reason." color={C.danger} />
+      <div style={{ marginTop:12 }}><FI label="Reason for Rejection" value={rejectNotes} onChange={setRejectNotes} placeholder="e.g. Budget not available this period..." /></div>
+      <MF onCancel={() => setRejectModal(null)} onSave={() => doReject(rejectModal)} label="✕ Reject Requisition" color={C.danger} />
+    </Modal>}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEAM CHAT
+// Rooms auto-generated: one per CWS station (all its staff + all HQ),
+// one per driver (driver + all HQ), one HQ-only.
+// Admin/MD can also create custom rooms and manage membership.
+// Custom rooms in Supabase. Auto-rooms built client-side.
+// Messages in DB for custom rooms; broadcast + session-cache for auto-rooms.
+// Read receipts stay in localStorage (per-device — intentional).
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ChatStore = {
+  readKey: (rid) => `chat_read:${rid}`,
+  markRead:(rid, ts) => { try { localStorage.setItem(`chat_read:${rid}`, String(ts)); } catch(e){} },
+  lastRead:(rid)     => { try { return parseInt(localStorage.getItem(`chat_read:${rid}`) || "0", 10); } catch(e){ return 0; } },
+
+  async loadMessages(roomId, token) {
+    try {
+      const r = await fetch(`/api/chat/rooms/${roomId}/messages?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
+      return r.ok ? await r.json() : [];
+    } catch { return []; }
+  },
+  async postMessage(roomId, msg, token) {
+    try {
+      await fetch(`/api/chat/rooms/${roomId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(msg),
+      });
+    } catch {}
+  },
+  async loadRooms(token) {
+    try {
+      const r = await fetch("/api/chat/rooms", { headers: { Authorization: `Bearer ${token}` } });
+      return r.ok ? await r.json() : [];
+    } catch { return []; }
+  },
+  async saveRoom(room, token) {
+    try {
+      await fetch("/api/chat/rooms", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(room),
+      });
+    } catch {}
+  },
+  async updateRoom(id, data, token) {
+    try {
+      await fetch(`/api/chat/rooms/${id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    } catch {}
+  },
+  async deleteRoom(id, token) {
+    try {
+      await fetch(`/api/chat/rooms/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    } catch {}
+  },
+};
+
+// ── Build auto rooms from live data ──────────────────────────────────────
+function buildChatRooms(users, cwsList, machines, currentUser) {
+  const rooms = [];
+  const hqRoles = ["sudo","md","admin","hq_finance","hq_accountant","hq_ops","hq_it"];
+  const hqUsers = users.filter(u => hqRoles.includes(u.role)).map(u => u.id);
+
+  // 1. HQ-only room
+  rooms.push({
+    id: "hq_general",
+    name: "HQ — General",
+    icon: "🏢",
+    type: "hq",
+    color: "#C8A84B",
+    memberIds: hqUsers,
+    autoGenerated: true,
+    canEdit: false,
+  });
+
+  // 2. Per-station rooms (station_manager + cashiers + clerks of that CWS + all HQ)
+  cwsList.forEach(cws => {
+    const stationUsers = users.filter(u =>
+      (u.cwsAccess || []).includes(cws.id) || u.role === "station_manager" && (u.cwsAccess||[]).includes(cws.id)
+    );
+    const memberIds = [...new Set([...hqUsers, ...stationUsers.map(u => u.id)])];
+    rooms.push({
+      id: `station_${cws.id}`,
+      name: cws.name,
+      icon: "☕",
+      type: "station",
+      color: "#C4793C",
+      memberIds,
+      autoGenerated: true,
+      canEdit: false,
+      cwsId: cws.id,
+    });
+  });
+
+  // 3. Per-driver rooms (driver + all HQ)
+  const drivers = users.filter(u => u.role === "driver");
+  drivers.forEach(driver => {
+    const machine = machines.find(m => m.driverId === driver.id);
+    const plate = machine?.plate || "No plate";
+    const memberIds = [...new Set([...hqUsers, driver.id])];
+    rooms.push({
+      id: `driver_${driver.id}`,
+      name: `${driver.name} · ${plate}`,
+      icon: "🚛",
+      type: "driver",
+      color: "#4A8EC8",
+      memberIds,
+      autoGenerated: true,
+      canEdit: false,
+    });
+  });
+
+  return rooms;
+}
+
+function ChatPage() {
+  const { currentUser: u, users, cwsList, machines, addNote } = useApp();
+
+  // ── Custom rooms — loaded from API ──────────────────────────────
+  const tok = () => localStorage.getItem("bender_token") || "";
+  const [customRooms, setCustomRoomsState] = useState([]);
+  const [roomsLoaded, setRoomsLoaded] = useState(false);
+
+  useEffect(() => {
+    ChatStore.loadRooms(tok()).then(rows => {
+      setCustomRoomsState((rows||[]).map(r => ({
+        ...r, memberIds: r.memberIds || r.member_ids || [],
+        autoGenerated: false, canEdit: true,
+      })));
+      setRoomsLoaded(true);
+    });
+  }, []);
+
+  // ── Auto rooms ───────────────────────────────────────────────────
+  const autoRooms = buildChatRooms(users, cwsList, machines, u);
+
+  // Merge: auto + custom; filter to rooms where current user is a member
+  const allRooms = [...autoRooms, ...customRooms].filter(r => r.memberIds.includes(u.id));
+
+  const [activeRoomId, setActiveRoomId] = useState(null);
+  const [messages, setMessages]         = useState([]);
+  const [input, setInput]               = useState("");
+  const [search, setSearch]             = useState("");
+  const [showNewRoom, setShowNewRoom]   = useState(false);
+  const [showManage, setShowManage]     = useState(null); // room id being managed
+  const [newRoomForm, setNewRoomForm]   = useState({ name:"", memberIds:[] });
+  const [unreadMap, setUnreadMap]       = useState({});
+  const msgEndRef  = useRef(null);
+  const inputRef   = useRef(null);
+
+  const activeRoom = allRooms.find(r => r.id === activeRoomId) || null;
+
+  // ── Load messages when room changes ─────────────────────────────
+  useEffect(() => {
+    if (!activeRoomId) return;
+    const room = allRooms.find(r => r.id === activeRoomId);
+    setMessages([]);
+    if (room?.type === "custom") {
+      ChatStore.loadMessages(activeRoomId, tok()).then(msgs => {
+        setMessages(msgs.map(m => ({ ...m, ts: new Date(m.createdAt || m.created_at || Date.now()).getTime() })));
+        setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior:"smooth" }), 80);
+      });
+    } else {
+      try {
+        const cached = JSON.parse(localStorage.getItem(`chat_cache:${activeRoomId}`) || "[]");
+        setMessages(cached);
+      } catch {}
+      setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior:"smooth" }), 80);
+    }
+    ChatStore.markRead(activeRoomId, Date.now());
+    setUnreadMap(p => ({ ...p, [activeRoomId]: 0 }));
+    window.__chatUnread = Math.max(0, (window.__chatUnread||0) - (unreadMap[activeRoomId]||0));
+  }, [activeRoomId]);
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    msgEndRef.current?.scrollIntoView({ behavior:"smooth" });
+  }, [messages]);
+
+  // ── Supabase Realtime broadcast ──────────────────────────────────
+  useEffect(() => {
+    if (!window.__supabase) return;
+    const ch = window.__supabase.channel("bender-chat", { config:{ broadcast:{ self:false } } });
+    ch.on("broadcast", { event:"msg" }, ({ payload }) => {
+      const { roomId, msg } = payload;
+      if (!roomId || !msg) return;
+      const room = allRooms.find(r => r.id === roomId);
+      if (room?.type !== "custom") {
+        try {
+          const cached = JSON.parse(localStorage.getItem(`chat_cache:${roomId}`) || "[]");
+          if (!cached.find(m => m.id === msg.id))
+            localStorage.setItem(`chat_cache:${roomId}`, JSON.stringify([...cached, msg].slice(-200)));
+        } catch {}
+      }
+      if (roomId === activeRoomId) {
+        setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
+        ChatStore.markRead(roomId, Date.now());
+      } else {
+        const lastRead = ChatStore.lastRead(roomId);
+        if ((msg.ts || 0) > lastRead) {
+          setUnreadMap(p => ({ ...p, [roomId]: (p[roomId]||0) + 1 }));
+          window.__chatUnread = (window.__chatUnread||0) + 1;
+        }
+      }
+    }).subscribe();
+    return () => { try { window.__supabase.removeChannel(ch); } catch(_){} };
+  }, [activeRoomId]);
+
+  // ── Compute unread on mount ──────────────────────────────────────
+  useEffect(() => {
+    if (!roomsLoaded) return;
+    const map = {};
+    let total = 0;
+    allRooms.forEach(r => {
+      if (r.type !== "custom") {
+        try {
+          const cached = JSON.parse(localStorage.getItem(`chat_cache:${r.id}`) || "[]");
+          const lastRead = ChatStore.lastRead(r.id);
+          const unread = cached.filter(m => (m.ts||0) > lastRead && m.senderId !== u.id).length;
+          map[r.id] = unread; total += unread;
+        } catch { map[r.id] = 0; }
+      } else { map[r.id] = 0; }
+    });
+    setUnreadMap(map);
+    window.__chatUnread = total;
+  }, [roomsLoaded]);
+
+  // ── Send message ─────────────────────────────────────────────────
+  const sendMsg = () => {
+    const text = input.trim();
+    if (!text || !activeRoom) return;
+    const msg = {
+      id: typeof uid === "function" ? uid() : Math.random().toString(36).slice(2),
+      roomId: activeRoom.id, senderId: u.id, senderName: u.name,
+      senderRole: u.role, senderAvatar: u.avatar || u.name?.[0] || "?",
+      text, ts: Date.now(), createdAt: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, msg]);
+    setInput("");
+    ChatStore.markRead(activeRoom.id, Date.now());
+    inputRef.current?.focus();
+    if (activeRoom.type === "custom") {
+      ChatStore.postMessage(activeRoom.id, msg, tok());
+    } else {
+      try {
+        const cached = JSON.parse(localStorage.getItem(`chat_cache:${activeRoom.id}`) || "[]");
+        localStorage.setItem(`chat_cache:${activeRoom.id}`, JSON.stringify([...cached, msg].slice(-200)));
+      } catch {}
+    }
+    if (window.__supabase) {
+      window.__supabase.channel("bender-chat").send({ type:"broadcast", event:"msg", payload:{ roomId: activeRoom.id, msg } }).catch(()=>{});
+    }
+  };
+
+  // ── Manage room members (custom rooms only for non-auto) ─────────
+  const saveManage = async (roomId, newMemberIds) => {
+    await ChatStore.updateRoom(roomId, { memberIds: newMemberIds, member_ids: newMemberIds }, tok());
+    setCustomRoomsState(p => p.map(r => r.id === roomId ? { ...r, memberIds: newMemberIds } : r));
+    setShowManage(null);
+    addNote("Room members updated", "success");
+  };
+  const deleteRoom = async (roomId) => {
+    await ChatStore.deleteRoom(roomId, tok());
+    setCustomRoomsState(p => p.filter(r => r.id !== roomId));
+    if (activeRoomId === roomId) { setActiveRoomId(null); setMessages([]); }
+    setShowManage(null);
+    addNote("Chat room deleted", "warning");
+  };
+  const createRoom = () => {
+    if (!newRoomForm.name.trim()) return addNote("Enter a room name", "warning");
+    if (newRoomForm.memberIds.length < 1) return addNote("Add at least one member", "warning");
+    const memberIds = [...new Set([...newRoomForm.memberIds, u.id])];
+    const room = {
+      id: `custom_${Date.now()}`,
+      name: newRoomForm.name.trim(),
+      icon: "💬",
+      type: "custom",
+      color: C.purple,
+      memberIds,
+      member_ids: memberIds,
+      autoGenerated: false,
+      canEdit: true,
+      createdBy: u.id,
+    };
+    await ChatStore.saveRoom(room, tok());
+    setCustomRoomsState(p => [...p, room]);
+    setNewRoomForm({ name:"", memberIds:[] });
+    setShowNewRoom(false);
+    setActiveRoomId(room.id);
+    setMessages([]);
+    addNote(`Room "${room.name}" created`, "success");
+  };
+
+  // ── Group rooms for sidebar ──────────────────────────────────────
+  const filteredRooms = allRooms.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
+  const grouped = {
+    hq:      filteredRooms.filter(r => r.type === "hq"),
+    custom:  filteredRooms.filter(r => r.type === "custom"),
+    station: filteredRooms.filter(r => r.type === "station"),
+    driver:  filteredRooms.filter(r => r.type === "driver"),
+  };
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  const fmtTime = (ts) => {
+    const d = new Date(ts);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay ? d.toLocaleTimeString("en-RW", { hour:"2-digit", minute:"2-digit" })
+                   : d.toLocaleDateString("en-RW", { day:"numeric", month:"short" }) + " " + d.toLocaleTimeString("en-RW", { hour:"2-digit", minute:"2-digit" });
+  };
+
+  // ── Room list item ────────────────────────────────────────────────
+  const RoomItem = ({ room }) => {
+    const unread = unreadMap[room.id] || 0;
+    let msgs = [];
+    if (room.id === activeRoomId) { msgs = messages; }
+    else if (room.type !== "custom") {
+      try { msgs = JSON.parse(localStorage.getItem(`chat_cache:${room.id}`) || "[]"); } catch {}
+    }
+    const last = msgs[msgs.length-1];
+    const active = activeRoomId === room.id;
+    return (
+      <div onClick={() => setActiveRoomId(room.id)} style={{
+        display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+        cursor:"pointer", borderRadius:11, marginBottom:2,
+        background: active ? `linear-gradient(135deg,${room.color}20,${room.color}08)` : "transparent",
+        border: `1px solid ${active ? room.color+"28" : "transparent"}`,
+        transition:"all .15s",
+      }}
+        onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.surfaceHover; }}
+        onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+      >
+        <div style={{ width:36, height:36, borderRadius:10, background:`${room.color}18`, border:`1.5px solid ${room.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{room.icon}</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ fontSize:12, fontWeight: unread>0 ? 700 : 500, color: active ? room.color : C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:130 }}>{room.name}</div>
+            {last && <div style={{ fontSize:9, color:C.textDim, flexShrink:0 }}>{fmtTime(last.ts)}</div>}
+          </div>
+          <div style={{ fontSize:11, color:C.textDim, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {last ? `${last.senderName.split(" ")[0]}: ${last.text}` : "No messages yet"}
+          </div>
+        </div>
+        {unread > 0 && <span style={{ background:room.color, color:"#0A0F0A", fontSize:9, padding:"2px 6px", borderRadius:20, fontWeight:800, flexShrink:0, minWidth:18, textAlign:"center" }}>{unread}</span>}
+      </div>
+    );
+  };
+
+  // ── Sidebar section ───────────────────────────────────────────────
+  const RoomSection = ({ title, rooms, color }) => {
+    if (!rooms.length) return null;
+    return <div style={{ marginBottom:8 }}>
+      <div style={{ fontSize:9, fontWeight:700, color, textTransform:"uppercase", letterSpacing:"1px", padding:"6px 14px 4px" }}>{title}</div>
+      {rooms.map(r => <RoomItem key={r.id} room={r} />)}
+    </div>;
+  };
+
+  // ── Message bubble ────────────────────────────────────────────────
+  const MsgBubble = ({ msg, showMeta }) => {
+    const isMe = msg.senderId === u.id;
+    const roleColor = ROLES[msg.senderRole]?.color || C.textMuted;
+    return (
+      <div style={{ display:"flex", flexDirection: isMe ? "row-reverse" : "row", gap:8, marginBottom: showMeta ? 14 : 4, alignItems:"flex-end" }}>
+        {!isMe && showMeta && (
+          <div style={{ width:28, height:28, borderRadius:"50%", background:`${roleColor}25`, border:`1.5px solid ${roleColor}40`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:roleColor, flexShrink:0 }}>
+            {(msg.senderAvatar||"?")[0]}
+          </div>
+        )}
+        {!isMe && !showMeta && <div style={{ width:28, flexShrink:0 }} />}
+        <div style={{ maxWidth:"68%", minWidth:60 }}>
+          {showMeta && !isMe && <div style={{ fontSize:10, color:roleColor, fontWeight:700, marginBottom:3, paddingLeft:4 }}>{msg.senderName} <span style={{ color:C.textDim, fontWeight:400 }}>· {ROLES[msg.senderRole]?.label||msg.senderRole}</span></div>}
+          <div style={{
+            background: isMe ? `linear-gradient(135deg,${C.gold}30,${C.gold}10)` : C.surface,
+            border: `1px solid ${isMe ? C.gold+"40" : C.border}`,
+            borderRadius: isMe ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
+            padding:"9px 13px", fontSize:13, color:C.text, lineHeight:1.45,
+            wordBreak:"break-word",
+          }}>{msg.text}</div>
+          <div style={{ fontSize:9, color:C.textDim, marginTop:3, textAlign: isMe ? "right" : "left", paddingLeft:4, paddingRight:4 }}>{fmtTime(msg.ts)}</div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Date divider ──────────────────────────────────────────────────
+  const DateDiv = ({ ts }) => {
+    const d = new Date(ts);
+    const now = new Date();
+    const label = d.toDateString() === now.toDateString() ? "Today"
+      : d.toDateString() === new Date(now-86400000).toDateString() ? "Yesterday"
+      : d.toLocaleDateString("en-RW", { weekday:"long", day:"numeric", month:"long" });
+    return <div style={{ display:"flex", alignItems:"center", gap:10, margin:"16px 0 10px" }}>
+      <div style={{ flex:1, height:1, background:C.border }} />
+      <div style={{ fontSize:10, color:C.textDim, fontWeight:600, padding:"2px 10px", background:C.surface, borderRadius:20, border:`1px solid ${C.border}` }}>{label}</div>
+      <div style={{ flex:1, height:1, background:C.border }} />
+    </div>;
+  };
+
+  // ── Group messages into day-blocks for rendering ──────────────────
+  const renderMessages = () => {
+    const out = [];
+    let lastDay = null;
+    let lastSender = null;
+    messages.forEach((msg, i) => {
+      const day = new Date(msg.ts).toDateString();
+      if (day !== lastDay) { out.push(<DateDiv key={`d${i}`} ts={msg.ts} />); lastDay = day; lastSender = null; }
+      const showMeta = msg.senderId !== lastSender;
+      out.push(<MsgBubble key={msg.id} msg={msg} showMeta={showMeta} />);
+      lastSender = msg.senderId;
+    });
+    return out;
+  };
+
+  // ── Manage members modal ──────────────────────────────────────────
+  const ManageModal = ({ room }) => {
+    const [memberIds, setMemberIds] = useState(room.memberIds);
+    const toggle = (id) => setMemberIds(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
+    return <Modal title={`Manage: ${room.name}`} onClose={() => setShowManage(null)} wide>
+      <div style={{ fontSize:11, color:C.textMuted, marginBottom:14 }}>Select members for this room. HQ members can be added or removed freely.</div>
+      <div style={{ maxHeight:320, overflowY:"auto", display:"flex", flexDirection:"column", gap:4 }}>
+        {users.map(uu => {
+          const checked = memberIds.includes(uu.id);
+          return <div key={uu.id} onClick={() => toggle(uu.id)} style={{
+            display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:9, cursor:"pointer",
+            background: checked ? `${ROLES[uu.role]?.color||C.gold}10` : "transparent",
+            border:`1px solid ${checked ? (ROLES[uu.role]?.color||C.gold)+"28" : C.border}`,
+          }}>
+            <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${checked?(ROLES[uu.role]?.color||C.gold):C.border}`, background: checked?(ROLES[uu.role]?.color||C.gold)+"30":"transparent", display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:checked?(ROLES[uu.role]?.color||C.gold):C.textDim, flexShrink:0 }}>{checked?"✓":""}</div>
+            <Ava user={uu} size={26} />
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{uu.name}</div>
+              <RB role={uu.role} sm />
+            </div>
+          </div>;
+        })}
+      </div>
+      <div style={{ display:"flex", gap:10, marginTop:16, paddingTop:14, borderTop:`1px solid ${C.border}`, justifyContent:"space-between" }}>
+        <button onClick={() => deleteRoom(room.id)} style={{ ...BtnS(C.danger,false,true), fontSize:12, padding:"7px 14px" }}>🗑 Delete Room</button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setShowManage(null)} style={{ ...BtnS(C.border,false,true), fontSize:12, padding:"7px 14px" }}>Cancel</button>
+          <button onClick={() => saveManage(room.id, memberIds)} style={{ ...BtnS(C.gold), fontSize:12, padding:"7px 16px" }}>Save Members</button>
+        </div>
+      </div>
+    </Modal>;
+  };
+
+  // ── New room modal ────────────────────────────────────────────────
+  const NewRoomModal = () => {
+    const [form, setForm] = useState({ name:"", memberIds:[] });
+    const toggle = (id) => setForm(p => ({ ...p, memberIds: p.memberIds.includes(id) ? p.memberIds.filter(x=>x!==id) : [...p.memberIds,id] }));
+    const doCreate = () => {
+      if (!form.name.trim()) return addNote("Enter a room name","warning");
+      if (form.memberIds.length < 1) return addNote("Add at least one member","warning");
+      const memberIds = [...new Set([...form.memberIds, u.id])];
+      const room = { id:`custom_${Date.now()}`, name:form.name.trim(), icon:"💬", type:"custom", color:C.purple, memberIds, member_ids: memberIds, autoGenerated:false, canEdit:true, createdBy:u.id };
+      await ChatStore.saveRoom(room, tok());
+      setCustomRoomsState(p => [...p, room]);
+      setShowNewRoom(false);
+      setActiveRoomId(room.id);
+      setMessages([]);
+      addNote(`Room "${room.name}" created`,"success");
+    };
+    return <Modal title="New Chat Room" onClose={() => setShowNewRoom(false)} wide>
+      <FI label="Room Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Project Alpha Team" />
+      <div style={{ fontSize:10, fontWeight:600, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", margin:"14px 0 8px" }}>Select Members</div>
+      <div style={{ maxHeight:300, overflowY:"auto", display:"flex", flexDirection:"column", gap:4 }}>
+        {users.map(uu => {
+          const checked = form.memberIds.includes(uu.id);
+          const rc = ROLES[uu.role]?.color || C.gold;
+          return <div key={uu.id} onClick={() => toggle(uu.id)} style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:9,cursor:"pointer", background:checked?`${rc}10`:"transparent", border:`1px solid ${checked?rc+"28":C.border}` }}>
+            <div style={{ width:16,height:16,borderRadius:4,border:`2px solid ${checked?rc:C.border}`,background:checked?rc+"30":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:checked?rc:C.textDim,flexShrink:0 }}>{checked?"✓":""}</div>
+            <Ava user={uu} size={26} />
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:12,fontWeight:600,color:C.text }}>{uu.name}</div>
+              <RB role={uu.role} sm />
+            </div>
+          </div>;
+        })}
+      </div>
+      <MF onCancel={() => setShowNewRoom(false)} onSave={doCreate} label="Create Room" color={C.purple} />
+    </Modal>;
+  };
+
+  // ── Room members preview ──────────────────────────────────────────
+  const RoomMembers = ({ room }) => {
+    const members = users.filter(uu => room.memberIds.includes(uu.id)).slice(0,8);
+    return <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+      {members.map((uu,i) => <div key={uu.id} style={{ marginLeft: i>0?-8:0, zIndex:members.length-i }}>
+        <Ava user={uu} size={22} />
+      </div>)}
+      {room.memberIds.length > 8 && <span style={{ fontSize:10, color:C.textDim, marginLeft:4 }}>+{room.memberIds.length-8}</span>}
+    </div>;
+  };
+
+  // ── RENDER ────────────────────────────────────────────────────────
+  return (
+    <div style={{ display:"flex", height:"calc(100vh - 120px)", minHeight:400, gap:0, background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, overflow:"hidden" }}>
+
+      {/* ── Sidebar ── */}
+      <div style={{ width:260, flexShrink:0, borderRight:`1px solid ${C.border}`, display:"flex", flexDirection:"column", background:C.bgDeep }}>
+        {/* Sidebar header */}
+        <div style={{ padding:"14px 14px 10px", borderBottom:`1px solid ${C.border}` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:C.text }}>💬 Team Chat</div>
+            {canManageChats(u.role) && <button onClick={() => setShowNewRoom(true)} style={{ ...BtnS(C.purple,true), fontSize:10, padding:"4px 10px" }}>+ Room</button>}
+          </div>
+          {/* Search */}
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search rooms…"
+            style={{ width:"100%", padding:"7px 11px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:12, outline:"none" }}
+            onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}} />
+        </div>
+        {/* Room list */}
+        <div style={{ flex:1, overflowY:"auto", padding:"8px 8px" }}>
+          <RoomSection title="HQ" rooms={grouped.hq} color={C.gold} />
+          <RoomSection title="Custom" rooms={grouped.custom} color={C.purple} />
+          <RoomSection title="Stations" rooms={grouped.station} color={C.coffee} />
+          <RoomSection title="Drivers" rooms={grouped.driver} color={C.machinery} />
+          {filteredRooms.length === 0 && <div style={{ textAlign:"center", padding:"30px 16px", color:C.textDim, fontSize:12 }}>No rooms found</div>}
+        </div>
+      </div>
+
+      {/* ── Chat area ── */}
+      {activeRoom ? (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
+          {/* Chat header */}
+          <div style={{ padding:"12px 18px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:12, background:C.bgCard, flexShrink:0 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:`${activeRoom.color}18`, border:`1.5px solid ${activeRoom.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{activeRoom.icon}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:C.text }}>{activeRoom.name}</div>
+              <RoomMembers room={activeRoom} />
+            </div>
+            {canManageChats(u.role) && activeRoom.type === "custom" && (
+              <button onClick={() => setShowManage(activeRoom.id)} style={{ ...BtnS(C.border,false,true), fontSize:11, padding:"5px 11px" }}>⚙ Manage</button>
+            )}
+            <div style={{ fontSize:10, color:C.textDim }}>{activeRoom.memberIds.length} members</div>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
+            {messages.length === 0 && (
+              <div style={{ textAlign:"center", padding:"60px 20px", color:C.textDim }}>
+                <div style={{ fontSize:36, marginBottom:12 }}>💬</div>
+                <div style={{ fontSize:13 }}>No messages yet. Say hello!</div>
+              </div>
+            )}
+            {renderMessages()}
+            <div ref={msgEndRef} />
+          </div>
+
+          {/* Input */}
+          <div style={{ padding:"12px 16px", borderTop:`1px solid ${C.border}`, display:"flex", gap:10, alignItems:"flex-end", background:C.bgCard, flexShrink:0 }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
+              placeholder={`Message ${activeRoom.name}…`}
+              rows={1}
+              style={{ flex:1, padding:"10px 14px", background:C.surface, border:`1.5px solid ${C.border}`, borderRadius:12, color:C.text, fontSize:13, outline:"none", resize:"none", lineHeight:1.4, maxHeight:100, overflowY:"auto", transition:"border-color .15s" }}
+              onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}}
+            />
+            <button onClick={sendMsg} disabled={!input.trim()} style={{ ...BtnS(C.gold), padding:"10px 16px", fontSize:13, opacity: input.trim()?1:0.4, flexShrink:0 }}>Send ↑</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, color:C.textDim }}>
+          <div style={{ fontSize:48, opacity:.3 }}>💬</div>
+          <div style={{ fontSize:15, fontWeight:600, color:C.textMuted }}>Select a chat room</div>
+          <div style={{ fontSize:12 }}>You have access to {allRooms.length} rooms</div>
+          {canManageChats(u.role) && <button onClick={() => setShowNewRoom(true)} style={{ ...BtnS(C.purple,true), marginTop:8, fontSize:12, padding:"8px 18px" }}>+ Create Custom Room</button>}
+        </div>
+      )}
+
+      {/* Modals */}
+      {showNewRoom && <NewRoomModal />}
+      {showManage && (() => {
+        const room = customRooms.find(r => r.id === showManage);
+        return room ? <ManageModal room={room} /> : null;
+      })()}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MD LOANS — visible only to md + sudo
+// All data stored in Supabase via /api/loans. Repayments via sub-resource.
+// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT CONTRACTS — MD & sudo only
+// Records buyer contracts: company, country, agreed tonnes, rate/kg,
+// total value, contract date, delivery date. Tracks delivery fulfilment.
+// Persisted in Supabase via /api/contracts.
+// ═══════════════════════════════════════════════════════════════════════════
+const ContractStore = {
+  async load(token) {
+    try {
+      const r = await fetch("/api/contracts", { headers: { Authorization: `Bearer ${token}` } });
+      return r.ok ? await r.json() : [];
+    } catch { return []; }
+  },
+  async save(contract, token) {
+    return fetch("/api/contracts", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(contract),
+    });
+  },
+  async update(id, data, token) {
+    return fetch(`/api/contracts/${id}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+  async remove(id, token) {
+    return fetch(`/api/contracts/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+  },
+  async addDelivery(contractId, delivery, token) {
+    return fetch(`/api/contracts/${contractId}/deliveries`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(delivery),
+    });
+  },
+  async loadDeliveries(contractId, token) {
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/deliveries`, { headers: { Authorization: `Bearer ${token}` } });
+      return r.ok ? await r.json() : [];
+    } catch { return []; }
+  },
+  async removeDelivery(contractId, deliveryId, token) {
+    return fetch(`/api/contracts/${contractId}/deliveries/${deliveryId}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+};
+
+// Country list (ISO common names, sorted)
+const COUNTRIES = [
+  "Australia","Austria","Belgium","Brazil","Canada","China","Colombia","Denmark",
+  "Ethiopia","Finland","France","Germany","Italy","Japan","Kenya","Netherlands",
+  "Norway","Poland","Portugal","Rwanda","Saudi Arabia","Singapore","South Korea",
+  "Spain","Sweden","Switzerland","Tanzania","Uganda","United Arab Emirates",
+  "United Kingdom","United States","Other",
+];
+
+const GRADES_CONTRACT = ["Arabica Parchment","Arabica Green","Fully Washed","Natural","Honey","Specialty","Robusta","Other"];
+const CONTRACT_STATUS = {
+  draft:     { label:"Draft",        col:"#8A8A8A" },
+  active:    { label:"Active",       col:"#3A8FC8" },
+  fulfilled: { label:"Fulfilled",    col:"#2ECC71" },
+  partial:   { label:"Partial",      col:"#C8A84B" },
+  cancelled: { label:"Cancelled",    col:"#E74C3C" },
+  expired:   { label:"Expired",      col:"#E74C3C" },
+};
+
+function ContractsPage() {
+  const { currentUser: u, warehouseMovements, addNote } = useApp();
+  const tok = () => localStorage.getItem("bender_token") || "";
+
+  const [contracts, setContracts] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [view,      setView]      = useState("list");   // list | new | detail
+  const [activeId,  setActiveId]  = useState(null);
+  const [editId,    setEditId]    = useState(null);
+  const [search,    setSearch]    = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [showDelivery, setShowDelivery] = useState(false);
+
+  // Load contracts on mount; lazy-load deliveries on detail view
+  useEffect(() => {
+    ContractStore.load(tok()).then(rows => { setContracts(rows); setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    if (view === "detail" && activeId) {
+      const c = contracts.find(c => c.id === activeId);
+      if (c && !c._delivLoaded) {
+        ContractStore.loadDeliveries(activeId, tok()).then(deliveries => {
+          setContracts(p => p.map(c => c.id === activeId ? { ...c, deliveries, _delivLoaded: true } : c));
+        });
+      }
+    }
+  }, [view, activeId]);
+
+  const activeContract = contracts.find(c => c.id === activeId) || null;
+
+  // ── Blank form ────────────────────────────────────────────────
+  const blank = {
+    contractRef: "", companyName: "", companyCountry: "United States",
+    contactPerson: "", contactEmail: "", contactPhone: "",
+    grade: "Arabica Green", agreedTonnes: "", ratePerKg: "",
+    currency: "USD", totalValue: "",
+    contractDate: today(), deliveryDate: "",
+    deliveryPort: "", paymentTerms: "Letter of Credit (L/C)",
+    status: "active", notes: "",
+  };
+  const [form, setForm] = useState(blank);
+  const sf = k => v => setForm(p => {
+    const updated = { ...p, [k]: v };
+    // Auto-compute total when tonnes or rate changes
+    if ((k === "agreedTonnes" || k === "ratePerKg") && updated.agreedTonnes && updated.ratePerKg)
+      updated.totalValue = String(Math.round(parseFloat(updated.agreedTonnes) * 1000 * parseFloat(updated.ratePerKg)));
+    return updated;
+  });
+
+  // Blank delivery
+  const blankDel = { deliveredTonnes: "", grade: "Arabica Green", shipmentRef: "", bl_number: "", date: today(), notes: "" };
+  const [delForm, setDelForm] = useState(blankDel);
+
+  // ── Helpers ───────────────────────────────────────────────────
+  const deliveredTonnes = c => (c.deliveries||[]).reduce((s,d) => s+(+d.deliveredTonnes||0), 0);
+  const pendingTonnes   = c => Math.max(0, (+c.agreedTonnes||0) - deliveredTonnes(c));
+  const pctDelivered    = c => { const t = +c.agreedTonnes||0; return t ? Math.min(100, Math.round(deliveredTonnes(c)/t*100)) : 0; };
+  const autoStatus      = c => {
+    if (c.status === "cancelled") return "cancelled";
+    if (pctDelivered(c) >= 100) return "fulfilled";
+    if (c.deliveryDate && new Date(c.deliveryDate) < new Date() && pctDelivered(c) < 100) return "expired";
+    if (pctDelivered(c) > 0) return "partial";
+    return c.status || "active";
+  };
+  const daysToDelivery = c => c.deliveryDate ? Math.ceil((new Date(c.deliveryDate)-new Date())/(1000*60*60*24)) : null;
+  const totalContracted = contracts.reduce((s,c) => s+(+c.agreedTonnes||0), 0);
+  const totalDelivered  = contracts.reduce((s,c) => s+deliveredTonnes(c), 0);
+  const totalValueUsd   = contracts.filter(c=>c.currency==="USD").reduce((s,c)=>s+(+c.totalValue||0),0);
+  const activeCount     = contracts.filter(c=>["active","partial"].includes(autoStatus(c))).length;
+
+  // ── CRUD ──────────────────────────────────────────────────────
+  const saveContract = async () => {
+    if (!form.companyName.trim()) return addNote("Company name is required", "warning");
+    if (!form.agreedTonnes || +form.agreedTonnes <= 0) return addNote("Agreed tonnes is required", "warning");
+    if (!form.ratePerKg || +form.ratePerKg <= 0) return addNote("Rate per kg is required", "warning");
+    if (!form.contractDate) return addNote("Contract date is required", "warning");
+    const rec = { ...form, agreedTonnes: +form.agreedTonnes, ratePerKg: +form.ratePerKg, totalValue: +form.totalValue||0 };
+    if (editId) {
+      await ContractStore.update(editId, rec, tok());
+      setContracts(p => p.map(c => c.id === editId ? { ...c, ...rec } : c));
+      addNote("Contract updated", "success");
+      setEditId(null);
+    } else {
+      const id = uid();
+      const full = { ...rec, id, deliveries: [], createdAt: new Date().toISOString(), createdBy: u.id };
+      await ContractStore.save(full, tok());
+      setContracts(p => [full, ...p]);
+      addNote(`Contract with ${form.companyName} recorded`, "success");
+    }
+    setForm(blank); setView("list");
+  };
+
+  const deleteContract = async id => {
+    if (!confirm("Delete this contract?")) return;
+    await ContractStore.remove(id, tok());
+    setContracts(p => p.filter(c => c.id !== id));
+    setView("list"); setActiveId(null);
+    addNote("Contract deleted", "warning");
+  };
+
+  const startEdit = c => {
+    setForm({ ...blank, ...c, agreedTonnes: String(c.agreedTonnes), ratePerKg: String(c.ratePerKg), totalValue: String(c.totalValue||"") });
+    setEditId(c.id); setView("new");
+  };
+
+  const recordDelivery = async () => {
+    if (!delForm.deliveredTonnes || +delForm.deliveredTonnes <= 0) return addNote("Enter delivered tonnes", "warning");
+    if (+delForm.deliveredTonnes > pendingTonnes(activeContract) + 0.001)
+      return addNote(`Exceeds pending: ${pendingTonnes(activeContract).toFixed(2)} T remaining`, "warning");
+    const del = { id: uid(), ...delForm, deliveredTonnes: +delForm.deliveredTonnes, recordedBy: u.id, recordedAt: new Date().toISOString() };
+    await ContractStore.addDelivery(activeContract.id, del, tok());
+    setContracts(p => p.map(c => c.id === activeContract.id ? { ...c, deliveries: [...(c.deliveries||[]), del] } : c));
+    setDelForm(blankDel); setShowDelivery(false);
+    addNote(`${del.deliveredTonnes} T delivery recorded`, "success");
+  };
+
+  // Warehouse stock available for delivery (balance kg → tonnes)
+  const whBalanceTonnes = (warehouseMovements.filter(m=>m.direction==="in").reduce((s,m)=>s+(+m.kg||0),0)
+    - warehouseMovements.filter(m=>m.direction==="out").reduce((s,m)=>s+(+m.kg||0),0)) / 1000;
+
+  // ── Field helpers ─────────────────────────────────────────────
+  const iS = { width:"100%", padding:"9px 12px", background:C.surface, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" };
+  const onFoc = e => e.target.style.borderColor = C.gold;
+  const onBlr = e => e.target.style.borderColor = C.border;
+  const FId = ({ label, value, onChange, placeholder, type="text", required=false }) => (
+    <div>
+      <FL>{label}{required && <span style={{color:C.danger}}> *</span>}</FL>
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""}
+        style={iS} onFocus={onFoc} onBlur={onBlr} />
+    </div>
+  );
+  const Seld = ({ label, value, onChange, options }) => (
+    <div>
+      <FL>{label}</FL>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{ ...iS, cursor:"pointer" }}>
+        {options.map(o => <option key={o.v||o} value={o.v||o}>{o.l||o}</option>)}
+      </select>
+    </div>
+  );
+  const TAd = ({ label, value, onChange, placeholder }) => (
+    <div>
+      <FL>{label}</FL>
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} rows={2}
+        style={{ ...iS, resize:"vertical" }} onFocus={onFoc} onBlur={onBlr} />
+    </div>
+  );
+
+  // ── Status badge ──────────────────────────────────────────────
+  const STag = ({ contract }) => {
+    const s = autoStatus(contract);
+    const m = CONTRACT_STATUS[s] || CONTRACT_STATUS.active;
+    return <span style={{ background:`${m.col}20`, color:m.col, border:`1px solid ${m.col}44`, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:700 }}>{m.label}</span>;
+  };
+
+  // ── Country flag emoji helper ─────────────────────────────────
+  const FLAG = { "United States":"🇺🇸","United Kingdom":"🇬🇧","Germany":"🇩🇪","France":"🇫🇷","Italy":"🇮🇹",
+    "Japan":"🇯🇵","China":"🇨🇳","South Korea":"🇰🇷","Netherlands":"🇳🇱","Belgium":"🇧🇪","Switzerland":"🇨🇭",
+    "Sweden":"🇸🇪","Norway":"🇳🇴","Denmark":"🇩🇰","Finland":"🇫🇮","Spain":"🇪🇸","Portugal":"🇵🇹",
+    "Australia":"🇦🇺","Canada":"🇨🇦","Singapore":"🇸🇬","United Arab Emirates":"🇦🇪","Saudi Arabia":"🇸🇦",
+    "Rwanda":"🇷🇼","Ethiopia":"🇪🇹","Kenya":"🇰🇪","Tanzania":"🇹🇿","Uganda":"🇺🇬","Brazil":"🇧🇷","Colombia":"🇨🇴" };
+  const flag = c => FLAG[c] || "🌐";
+
+  // ── Market price widget (compact) ─────────────────────────────
+  const MarketStrip = () => (
+    <CoffeeMarketWidget kgBalance={whBalanceTonnes * 1000} compact />
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER — NEW / EDIT FORM
+  // ══════════════════════════════════════════════════════════════
+  if (view === "new") return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+        <button onClick={() => { setView("list"); setForm(blank); setEditId(null); }} style={{ ...BtnS(C.border,false,true), fontSize:12, padding:"6px 13px" }}>← Back</button>
+        <div>
+          <div style={{ fontSize:18, fontWeight:700, color:C.goldLight }}>{editId ? "Edit Contract" : "New Export Contract"}</div>
+          <div style={{ fontSize:12, color:C.textMuted }}>All financial fields in selected currency</div>
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))", gap:14 }}>
+        {/* Buyer info */}
+        <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:13, padding:"18px 18px 14px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:14 }}>🏢 Buyer Information</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+            <FId label="Contract Reference #" value={form.contractRef} onChange={sf("contractRef")} placeholder="e.g. BE-EXP-2025-001" />
+            <FId label="Company Name" value={form.companyName} onChange={sf("companyName")} placeholder="e.g. Nordic Coffee Roasters" required />
+            <Seld label="Country" value={form.companyCountry} onChange={sf("companyCountry")} options={COUNTRIES} />
+            <FId label="Contact Person" value={form.contactPerson} onChange={sf("contactPerson")} placeholder="Full name" />
+            <FId label="Contact Email" value={form.contactEmail} onChange={sf("contactEmail")} placeholder="buyer@company.com" type="email" />
+            <FId label="Contact Phone" value={form.contactPhone} onChange={sf("contactPhone")} placeholder="+1 XXX XXX XXXX" type="tel" />
+          </div>
+        </div>
+
+        {/* Contract terms */}
+        <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:13, padding:"18px 18px 14px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:14 }}>📋 Contract Terms</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+            <Seld label="Coffee Grade" value={form.grade} onChange={sf("grade")} options={GRADES_CONTRACT} />
+            <FId label="Agreed Tonnes" value={form.agreedTonnes} onChange={sf("agreedTonnes")} type="number" placeholder="e.g. 24.5" required />
+            <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:8 }}>
+              <FId label="Rate per kg" value={form.ratePerKg} onChange={sf("ratePerKg")} type="number" placeholder="e.g. 5.20" required />
+              <Seld label="Currency" value={form.currency} onChange={sf("currency")} options={["USD","EUR","GBP","RWF"].map(v=>({v,l:v}))} />
+            </div>
+            {/* Auto-computed total */}
+            <div style={{ background:`${C.gold}10`, border:`1px solid ${C.gold}28`, borderRadius:8, padding:"10px 13px" }}>
+              <div style={{ fontSize:10, color:C.textDim, marginBottom:3 }}>Total Contract Value (auto-computed)</div>
+              <div style={{ fontSize:18, fontWeight:800, color:C.goldLight }}>
+                {form.currency} {form.agreedTonnes && form.ratePerKg
+                  ? Number(+form.agreedTonnes * 1000 * +form.ratePerKg).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})
+                  : "—"}
+              </div>
+              <div style={{ fontSize:10, color:C.textDim, marginTop:2 }}>
+                {form.agreedTonnes ? `${(+form.agreedTonnes*1000).toLocaleString()} kg` : ""}{form.ratePerKg ? ` × ${form.currency} ${form.ratePerKg}/kg` : ""}
+              </div>
+            </div>
+            <Seld label="Contract Status" value={form.status} onChange={sf("status")} options={Object.entries(CONTRACT_STATUS).map(([v,m])=>({v,l:m.label}))} />
+          </div>
+        </div>
+
+        {/* Dates, delivery & payment */}
+        <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:13, padding:"18px 18px 14px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:14 }}>📅 Dates & Logistics</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+            <FId label="Contract Signed Date" value={form.contractDate} onChange={sf("contractDate")} type="date" required />
+            <FId label="Delivery Deadline" value={form.deliveryDate} onChange={sf("deliveryDate")} type="date" />
+            <FId label="Delivery Port / Destination" value={form.deliveryPort} onChange={sf("deliveryPort")} placeholder="e.g. Mombasa, Port of Rotterdam" />
+            <Seld label="Payment Terms" value={form.paymentTerms} onChange={sf("paymentTerms")} options={[
+              "Letter of Credit (L/C)","Cash Against Documents (CAD)","Cash in Advance","Open Account",
+              "Documentary Collection","Deferred Payment","Other",
+            ]} />
+            <TAd label="Notes / Special Terms" value={form.notes} onChange={sf("notes")} placeholder="e.g. Organic certified, moisture ≤ 12%, screen size 15+" />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", justifyContent:"flex-end", gap:10, marginTop:20 }}>
+        <button onClick={() => { setView("list"); setForm(blank); setEditId(null); }} style={{ ...BtnS(C.border,false,true), fontSize:13, padding:"9px 18px" }}>Cancel</button>
+        <button onClick={saveContract} style={{ ...BtnS(C.gold), fontSize:13, padding:"9px 22px" }}>{editId ? "Save Changes" : "Record Contract"} →</button>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER — DETAIL VIEW
+  // ══════════════════════════════════════════════════════════════
+  if (view === "detail" && activeContract) {
+    const c    = activeContract;
+    const st   = autoStatus(c);
+    const sM   = CONTRACT_STATUS[st] || CONTRACT_STATUS.active;
+    const pct  = pctDelivered(c);
+    const delT = deliveredTonnes(c);
+    const penT = pendingTonnes(c);
+    const days = daysToDelivery(c);
+    const fmtVal = v => `${c.currency} ${Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+
+    return (
+      <div>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18, flexWrap:"wrap" }}>
+          <button onClick={() => { setView("list"); setActiveId(null); }} style={{ ...BtnS(C.border,false,true), fontSize:12, padding:"6px 13px" }}>← Back</button>
+          <div style={{ flex:1 }} />
+          <button onClick={() => startEdit(c)} style={{ ...BtnS(C.info,false,true), fontSize:12, padding:"6px 14px" }}>✏ Edit</button>
+          <button onClick={() => deleteContract(c.id)} style={{ ...BtnS(C.danger,false,true), fontSize:12, padding:"6px 14px" }}>🗑 Delete</button>
+          {["active","partial"].includes(st) && <button onClick={() => setShowDelivery(true)} style={{ ...BtnS(C.gold), fontSize:12, padding:"6px 16px" }}>+ Record Delivery</button>}
+        </div>
+
+        {/* Header card */}
+        <div style={{ background:C.gradCard, border:`1.5px solid ${sM.col}28`, borderRadius:14, padding:"20px 22px", marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:14, flexWrap:"wrap" }}>
+            <div style={{ fontSize:36, flexShrink:0 }}>{flag(c.companyCountry)}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:20, fontWeight:700, color:C.text, marginBottom:2 }}>{c.companyName}</div>
+              <div style={{ fontSize:12, color:C.textMuted, marginBottom:6 }}>
+                {c.companyCountry}{c.contactPerson ? ` · ${c.contactPerson}` : ""}{c.contactEmail ? ` · ${c.contactEmail}` : ""}
+              </div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                <STag contract={c} />
+                {c.contractRef && <span style={{ background:C.surface, color:C.textMuted, border:`1px solid ${C.border}`, borderRadius:20, padding:"2px 9px", fontSize:10 }}>{c.contractRef}</span>}
+                <span style={{ background:`${C.gold}15`, color:C.gold, border:`1px solid ${C.gold}28`, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:600 }}>{c.grade}</span>
+                {days !== null && ["active","partial"].includes(st) && <span style={{ fontSize:10, color: days<0?C.danger:days<14?C.warning:C.textMuted }}>
+                  {days<0 ? `${Math.abs(days)}d overdue` : days===0 ? "Due today" : `${days}d to deadline`}
+                </span>}
+              </div>
+            </div>
+            <div style={{ textAlign:"right", flexShrink:0 }}>
+              <div style={{ fontSize:22, fontWeight:800, color:C.goldLight }}>{fmtVal(c.totalValue||0)}</div>
+              <div style={{ fontSize:11, color:C.textDim }}>total contract value</div>
+              <div style={{ fontSize:12, color:C.textMuted, marginTop:2 }}>{c.ratePerKg} {c.currency}/kg · {c.agreedTonnes} T</div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ marginTop:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.textMuted, marginBottom:5 }}>
+              <span>Delivery progress — {delT.toFixed(2)} T of {c.agreedTonnes} T</span>
+              <span>{pct}% delivered</span>
+            </div>
+            <div style={{ height:8, background:C.surface, borderRadius:6, overflow:"hidden" }}>
+              <div style={{ height:"100%", width:`${pct}%`, background: pct>=100?C.success:pct>=50?C.gold:sM.col, borderRadius:6, transition:"width .4s" }} />
+            </div>
+          </div>
+
+          {/* Key figures */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))", gap:9, marginTop:14 }}>
+            {[
+              ["Agreed",    `${c.agreedTonnes} T`,         C.text],
+              ["Delivered", `${delT.toFixed(2)} T`,        C.success],
+              ["Remaining", `${penT.toFixed(2)} T`,        penT>0?C.warning:C.success],
+              ["Rate",      `${c.ratePerKg} ${c.currency}/kg`, C.gold],
+              ["Total",     fmtVal(c.totalValue||0),       C.goldLight],
+              ["Shipments", (c.deliveries||[]).length,     C.info],
+            ].map(([label,val,col]) => (
+              <div key={label} style={{ background:C.surface, borderRadius:9, padding:"9px 11px" }}>
+                <div style={{ fontSize:9, color:C.textDim, marginBottom:2 }}>{label}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:col }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Details */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))", gap:14, marginBottom:16 }}>
+          <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:12, padding:"15px 18px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:10 }}>Contract Details</div>
+            {[["Signed Date",c.contractDate],["Delivery Deadline",c.deliveryDate||"—"],["Delivery Port",c.deliveryPort||"—"],["Payment Terms",c.paymentTerms||"—"],["Currency",c.currency]].map(([k,v]) => (
+              <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${C.border}`, fontSize:12 }}>
+                <span style={{ color:C.textMuted }}>{k}</span><span style={{ color:C.text, fontWeight:500, maxWidth:"60%", textAlign:"right" }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:12, padding:"15px 18px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:10 }}>Warehouse vs Contract</div>
+            {[
+              ["Available in Warehouse", `${whBalanceTonnes.toFixed(2)} T`],
+              ["Contract Remaining",     `${penT.toFixed(2)} T`],
+              ["Sufficient Stock",       whBalanceTonnes >= penT ? "✓ Yes" : "⚠ No"],
+            ].map(([k,v]) => (
+              <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${C.border}`, fontSize:12 }}>
+                <span style={{ color:C.textMuted }}>{k}</span>
+                <span style={{ color: k==="Sufficient Stock"?(whBalanceTonnes>=penT?C.success:C.danger):C.text, fontWeight:600 }}>{v}</span>
+              </div>
+            ))}
+            {c.notes && <div style={{ marginTop:10, fontSize:11, color:C.textDim, lineHeight:1.5 }}>{c.notes}</div>}
+          </div>
+        </div>
+
+        {/* Delivery history */}
+        <div style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:12, padding:"15px 18px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.7px" }}>Delivery Records ({(c.deliveries||[]).length})</div>
+            {["active","partial"].includes(st) && <button onClick={() => setShowDelivery(true)} style={{ ...BtnS(C.gold,true), fontSize:11, padding:"4px 12px" }}>+ Add</button>}
+          </div>
+          {!(c.deliveries||[]).length
+            ? <div style={{ textAlign:"center", padding:"20px", color:C.textDim, fontSize:12 }}>No deliveries recorded yet</div>
+            : <div>
+                <div style={{ display:"grid", gridTemplateColumns:"90px 80px 100px 120px 1fr auto", gap:8, fontSize:10, fontWeight:700, color:C.textDim, padding:"0 6px 8px", borderBottom:`1px solid ${C.border}` }}>
+                  <span>Date</span><span>Tonnes</span><span>Grade</span><span>B/L Number</span><span>Shipment Ref</span><span></span>
+                </div>
+                {[...(c.deliveries||[])].reverse().map(d => (
+                  <div key={d.id} style={{ display:"grid", gridTemplateColumns:"90px 80px 100px 120px 1fr auto", gap:8, padding:"8px 6px", borderBottom:`1px solid ${C.border}22`, alignItems:"center", fontSize:12 }}>
+                    <span style={{ color:C.textMuted }}>{d.date}</span>
+                    <span style={{ color:C.success, fontWeight:700 }}>{d.deliveredTonnes} T</span>
+                    <span style={{ color:C.textDim }}>{d.grade}</span>
+                    <span style={{ color:C.gold, fontWeight:600 }}>{d.bl_number||"—"}</span>
+                    <span style={{ color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.shipmentRef||"—"}</span>
+                    <button onClick={() => {
+                      ContractStore.removeDelivery(c.id, d.id, tok());
+                      setContracts(p => p.map(cc => cc.id===c.id ? { ...cc, deliveries: cc.deliveries.filter(dd=>dd.id!==d.id) } : cc));
+                    }} style={{ background:"transparent", border:"none", color:C.danger, cursor:"pointer", fontSize:13 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+
+        {/* Record delivery modal */}
+        {showDelivery && <Modal title={`Record Delivery — ${c.companyName}`} onClose={() => setShowDelivery(false)} wide>
+          <div style={{ background:`${C.info}10`, border:`1px solid ${C.info}28`, borderRadius:9, padding:"10px 14px", marginBottom:14, display:"flex", justifyContent:"space-between" }}>
+            <span style={{ fontSize:12, color:C.textMuted }}>Remaining to deliver</span>
+            <span style={{ fontWeight:800, color:C.goldLight }}>{penT.toFixed(2)} T  ({(penT*1000).toLocaleString()} kg)</span>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:11, marginBottom:12 }}>
+            <FId label="Date" type="date" value={delForm.date} onChange={v=>setDelForm(p=>({...p,date:v}))} />
+            <FId label="Delivered Tonnes" type="number" value={delForm.deliveredTonnes} onChange={v=>setDelForm(p=>({...p,deliveredTonnes:v}))} placeholder={`max ${penT.toFixed(2)}`} required />
+            <Seld label="Grade" value={delForm.grade} onChange={v=>setDelForm(p=>({...p,grade:v}))} options={GRADES_CONTRACT} />
+            <FId label="B/L Number" value={delForm.bl_number} onChange={v=>setDelForm(p=>({...p,bl_number:v}))} placeholder="Bill of Lading #" />
+            <FId label="Shipment Reference" value={delForm.shipmentRef} onChange={v=>setDelForm(p=>({...p,shipmentRef:v}))} placeholder="SHP-XXX-001" />
+            <div style={{ gridColumn:"1/-1" }}><FId label="Notes" value={delForm.notes} onChange={v=>setDelForm(p=>({...p,notes:v}))} placeholder="Optional" /></div>
+          </div>
+          <MF onCancel={() => setShowDelivery(false)} onSave={recordDelivery} label="Save Delivery" color={C.success} />
+        </Modal>}
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER — LIST VIEW
+  // ══════════════════════════════════════════════════════════════
+  const STATUS_TABS = [["all","All"],["active","Active"],["partial","In Progress"],["fulfilled","Fulfilled"],["expired","Expired"],["cancelled","Cancelled"]];
+  const filtered = contracts
+    .filter(c => filterStatus==="all" || autoStatus(c)===filterStatus)
+    .filter(c => !search || c.companyName.toLowerCase().includes(search.toLowerCase()) || (c.companyCountry||"").toLowerCase().includes(search.toLowerCase()) || (c.contractRef||"").toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, flexWrap:"wrap" }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:20, fontWeight:700, color:C.goldLight }}>📄 Export Contracts</div>
+          <div style={{ fontSize:12, color:C.textMuted }}>Buyer agreements · Delivery tracking · MD & Sudo only</div>
+        </div>
+        <button onClick={() => { setForm(blank); setEditId(null); setView("new"); }} style={{ ...BtnS(C.gold), fontSize:12, padding:"8px 18px" }}>+ New Contract</button>
+      </div>
+
+      {/* Market widget */}
+      <MarketStrip />
+
+      {/* Summary cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:12, marginBottom:20 }}>
+        {[
+          ["Active Contracts", activeCount,                        C.info],
+          ["Total Contracted", `${totalContracted.toFixed(1)} T`, C.gold],
+          ["Total Delivered",  `${totalDelivered.toFixed(1)} T`,  C.success],
+          ["Pending Delivery", `${(totalContracted-totalDelivered).toFixed(1)} T`, C.warning],
+          ["Portfolio Value",  `USD ${Number(totalValueUsd).toLocaleString(undefined,{maximumFractionDigits:0})}`, C.goldLight],
+        ].map(([label,val,col]) => (
+          <div key={label} style={{ background:C.gradCard, border:`1px solid ${col}22`, borderRadius:12, padding:"13px 15px" }}>
+            <div style={{ fontSize:10, color:C.textDim, marginBottom:4 }}>{label}</div>
+            <div style={{ fontSize:15, fontWeight:800, color:col }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs + search */}
+      <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+          {STATUS_TABS.map(([key,label]) => {
+            const count = key==="all" ? contracts.length : contracts.filter(c=>autoStatus(c)===key).length;
+            const col = CONTRACT_STATUS[key]?.col || C.gold;
+            const active = filterStatus === key;
+            return <button key={key} onClick={() => setFilterStatus(key)}
+              style={{ ...BtnS(active?col:C.border, !active, !active), fontSize:11, padding:"5px 12px" }}>
+              {label} {count>0 && <span style={{ marginLeft:4, fontSize:9 }}>{count}</span>}
+            </button>;
+          })}
+        </div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, country, ref…"
+          style={{ marginLeft:"auto", padding:"7px 12px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:12, outline:"none", minWidth:200 }}
+          onFocus={onFoc} onBlur={onBlr} />
+      </div>
+
+      {/* Contract cards */}
+      {loading ? (
+        <div style={{ textAlign:"center", padding:"48px", color:C.textDim }}>⏳ Loading contracts…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"60px 20px", color:C.textDim }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📄</div>
+          <div style={{ fontSize:14 }}>{contracts.length===0 ? "No contracts yet. Click \"+ New Contract\" to record one." : "No contracts match your filter."}</div>
+        </div>
+      ) : filtered.map(c => {
+        const st  = autoStatus(c);
+        const sM  = CONTRACT_STATUS[st] || CONTRACT_STATUS.active;
+        const pct = pctDelivered(c);
+        const days = daysToDelivery(c);
+        return (
+          <div key={c.id} onClick={() => { setActiveId(c.id); setView("detail"); setShowDelivery(false); }}
+            style={{ background:C.gradCard, border:`1px solid ${sM.col}20`, borderRadius:13, padding:"16px 18px", marginBottom:10, cursor:"pointer", transition:"border-color .15s" }}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=sM.col+"50"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor=sM.col+"20"}
+          >
+            <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+              <div style={{ fontSize:28, flexShrink:0, marginTop:2 }}>{flag(c.companyCountry)}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:15, fontWeight:700, color:C.text }}>{c.companyName}</span>
+                  <STag contract={c} />
+                  {c.contractRef && <span style={{ fontSize:10, color:C.textDim }}>{c.contractRef}</span>}
+                </div>
+                <div style={{ fontSize:12, color:C.textMuted, marginBottom:6 }}>
+                  {c.companyCountry} · {c.grade}
+                  {c.contactPerson ? ` · ${c.contactPerson}` : ""}
+                  {days !== null && ["active","partial"].includes(st) && <span style={{ marginLeft:8, color: days<0?C.danger:days<14?C.warning:C.textMuted, fontWeight:600 }}>
+                    {days<0 ? `${Math.abs(days)}d overdue` : days===0 ? "Due today" : `${days}d to deadline`}
+                  </span>}
+                </div>
+                <div style={{ height:4, background:C.surface, borderRadius:4, overflow:"hidden", marginBottom:6 }}>
+                  <div style={{ height:"100%", width:`${pct}%`, background: pct>=100?C.success:pct>=50?C.gold:sM.col, borderRadius:4 }} />
+                </div>
+                <div style={{ display:"flex", gap:14, fontSize:11, color:C.textDim, flexWrap:"wrap" }}>
+                  <span>Signed <span style={{color:C.text}}>{c.contractDate}</span></span>
+                  {c.deliveryDate && <span>Delivery <span style={{color:C.text}}>{c.deliveryDate}</span></span>}
+                  <span>{deliveredTonnes(c).toFixed(1)} T of <span style={{color:C.text}}>{c.agreedTonnes} T</span> ({pct}%)</span>
+                  {(c.deliveries||[]).length > 0 && <span>{(c.deliveries||[]).length} shipment{(c.deliveries||[]).length>1?"s":""}</span>}
+                </div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ fontSize:16, fontWeight:800, color:C.goldLight }}>{c.currency} {Number(c.totalValue||0).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                <div style={{ fontSize:10, color:C.textDim }}>{c.ratePerKg} {c.currency}/kg</div>
+                <div style={{ fontSize:10, color:C.textDim, marginTop:2 }}>{c.agreedTonnes} T</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const LoanStore = {
+  toApi: (l) => ({
+    id:            l.id,
+    borrower_name: l.borrowerName,
+    phone:         l.phone         || null,
+    email:         l.email         || null,
+    address:       l.address       || null,
+    category:      l.category      || "individual",
+    affiliation:   l.affiliation   || null,
+    amount:        Number(l.amount) || 0,
+    currency:      l.currency      || "RWF",
+    interest_rate: Number(l.interestRate) || 0,
+    interest_type: l.interestType  || "flat",
+    issued_date:   l.issuedDate    || null,
+    due_date:      l.dueDate       || null,
+    purpose:       l.purpose       || null,
+    collateral:    l.collateral    || null,
+    witness_name:  l.witnessName   || null,
+    witness_phone: l.witnessPhone  || null,
+    notes:         l.notes         || null,
+    status:        l.status        || "active",
+  }),
+  fromApi: (r) => ({
+    id:           r.id,
+    borrowerName: r.borrower_name  || r.borrowerName  || "",
+    phone:        r.phone          || "",
+    email:        r.email          || "",
+    address:      r.address        || "",
+    category:     r.category       || "individual",
+    affiliation:  r.affiliation    || "",
+    amount:       Number(r.amount) || 0,
+    currency:     r.currency       || "RWF",
+    interestRate: r.interest_rate  ?? r.interestRate  ?? 0,
+    interestType: r.interest_type  || r.interestType  || "flat",
+    issuedDate:   r.issued_date    || r.issuedDate    || "",
+    dueDate:      r.due_date       || r.dueDate       || "",
+    purpose:      r.purpose        || "",
+    collateral:   r.collateral     || "",
+    witnessName:  r.witness_name   || r.witnessName   || "",
+    witnessPhone: r.witness_phone  || r.witnessPhone  || "",
+    notes:        r.notes          || "",
+    repayments:   r.repayments     || [],
+    totalRepaid:  r.total_repaid   || r.totalRepaid   || 0,
+    balance:      r.balance        ?? Number(r.amount) ?? 0,
+    status:       r.status         || "active",
+    createdAt:    r.created_at     || r.createdAt     || "",
+  }),
+};
+
+function LoansPage() {
+  const { currentUser: u, addNote } = useApp();
+
+  const [loans, setLoans]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view,    setView]    = useState("list");   // list | new | detail
+  const [activeId, setActiveId] = useState(null);
+  const [filterTab, setFilterTab] = useState("all");
+  const [search,  setSearch]  = useState("");
+  const blankForm = { borrowerName:"", phone:"", email:"", address:"", category:"individual", affiliation:"", amount:"", currency:"RWF", interestRate:"0", interestType:"flat", issuedDate: today(), dueDate:"", purpose:"", collateral:"", notes:"", witnessName:"", witnessPhone:"" };
+  const [form, setForm]       = useState(blankForm);
+  const [editId, setEditId]   = useState(null);
+  const blankRepay = { amount:"", date: today(), method:"cash", reference:"", notes:"" };
+  const [repayForm, setRepayForm] = useState(blankRepay);
+  const [showRepay, setShowRepay] = useState(false);
+
+  const activeLoan = loans.find(l => l.id === activeId) || null;
+
+  // ── Load loans ──────────────────────────────────────────────────
+  const reload = () => {
+    apiFetch("/api/loans?order=updated_at.desc")
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => { setLoans((rows||[]).map(LoanStore.fromApi)); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+  useEffect(() => { reload(); }, []);
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  const totalRepaid = (l) => (l.repayments||[]).reduce((s,r) => s + (+r.amount||0), 0);
+  const getBalance  = (l) => {
+    if (l.balance != null) return l.balance;
+    const principal = +l.amount||0;
+    const rate = +l.interestRate||0;
+    let interest = 0;
+    if (rate > 0) {
+      if (l.interestType==="flat") interest = principal * (rate/100);
+      else {
+        const months = l.dueDate && l.issuedDate ? Math.max(1,Math.round((new Date(l.dueDate)-new Date(l.issuedDate))/(1000*60*60*24*30))) : 1;
+        interest = principal * Math.pow(1+rate/100,months) - principal;
+      }
+    }
+    return Math.max(0, principal + interest - totalRepaid(l));
+  };
+  const loanStatus = (l) => {
+    if (getBalance(l) <= 0) return "settled";
+    if (l.dueDate && new Date(l.dueDate) < new Date()) return "overdue";
+    return "active";
+  };
+  const STATUS_META = {
+    active:  { label:"Active",  col: C.info },
+    overdue: { label:"Overdue", col: C.danger },
+    settled: { label:"Settled", col: C.success },
+  };
+  const STag = ({ loan }) => {
+    const s = loanStatus(loan); const m = STATUS_META[s];
+    return <span style={{ background:`${m.col}20`, color:m.col, border:`1px solid ${m.col}44`, borderRadius:20, padding:"2px 9px", fontSize:10, fontWeight:700 }}>{m.label}</span>;
+  };
+  const daysUntilDue = (l) => l.dueDate ? Math.ceil((new Date(l.dueDate)-new Date())/(1000*60*60*24)) : null;
+  const pctRepaid   = (l) => { const t = +l.amount||0; return t ? Math.min(100,Math.round(totalRepaid(l)/t*100)) : 0; };
+  const CATEGORIES = ["individual","company","station","project","other"];
+  const METHODS    = ["cash","bank_transfer","mobile_money","cheque","other"];
+
+  // ── CRUD ─────────────────────────────────────────────────────────
+  const saveLoan = () => {
+    if (!form.borrowerName.trim()) return addNote("Borrower name required","warning");
+    if (!form.amount || +form.amount<=0) return addNote("Enter a valid amount","warning");
+    if (!form.issuedDate) return addNote("Issued date required","warning");
+    const payload = LoanStore.toApi({ ...form, id: editId || uid(), amount:+form.amount, interestRate:+form.interestRate||0 });
+    const method  = editId ? "PUT" : "POST";
+    const url     = editId ? `/api/loans/${editId}` : "/api/loans";
+    apiFetch(url, { method, headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
+      .then(r => r.ok ? reload() : r.json().then(d => Promise.reject(d.error)))
+      .then(() => { addNote(editId ? "Loan updated" : `Loan of ${fmtRWF(+form.amount)} recorded for ${form.borrowerName}`,"success"); setForm(blankForm); setEditId(null); setView("list"); })
+      .catch(e => addNote(`Save failed: ${e}`,"error"));
+  };
+
+  const deleteLoan = (id) => {
+    apiFetch(`/api/loans/${id}`, { method:"DELETE" })
+      .then(() => { setLoans(p => p.filter(l => l.id!==id)); setView("list"); setActiveId(null); addNote("Loan deleted","warning"); })
+      .catch(() => addNote("Delete failed","error"));
+  };
+
+  const startEdit = (loan) => {
+    setForm({ ...blankForm, ...loan, amount:String(loan.amount), interestRate:String(loan.interestRate||0) });
+    setEditId(loan.id); setView("new");
+  };
+
+  const recordRepayment = () => {
+    if (!repayForm.amount || +repayForm.amount<=0) return addNote("Enter a valid amount","warning");
+    const bal = getBalance(activeLoan);
+    if (+repayForm.amount > bal+0.01) return addNote("Amount exceeds balance","warning");
+    const body = { id:uid(), ...repayForm, amount:+repayForm.amount };
+    apiFetch(`/api/loans/${activeLoan.id}/repayments`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        setLoans(p => p.map(l => l.id===activeLoan.id ? { ...l, repayments:[...(l.repayments||[]),body], balance:d.balance, status:d.status } : l));
+        addNote(`Repayment of ${fmtRWF(+repayForm.amount)} recorded`,"success");
+      })
+      .catch(() => addNote("Failed to record repayment","error"));
+    setRepayForm(blankRepay); setShowRepay(false);
+  };
+
+  const deleteRepayment = (loanId, repayId) => {
+    apiFetch(`/api/loans/${loanId}/repayments/${repayId}`, { method:"DELETE" })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setLoans(p => p.map(l => l.id===loanId ? { ...l, repayments:l.repayments.filter(r=>r.id!==repayId), balance:d.balance, status:d.status } : l)))
+      .catch(() => addNote("Failed to remove repayment","error"));
+  };
+
+  // ── Summary ───────────────────────────────────────────────────────
+  const totalIssued      = loans.reduce((s,l) => s+(+l.amount||0), 0);
+  const totalOutstanding = loans.filter(l=>loanStatus(l)!=="settled").reduce((s,l) => s+getBalance(l), 0);
+  const totalSettled     = loans.filter(l=>loanStatus(l)==="settled").length;
+  const overdueCount     = loans.filter(l=>loanStatus(l)==="overdue").length;
+
+  const filtered = loans.filter(l => {
+    const matchTab = filterTab==="all" || loanStatus(l)===filterTab;
+    const q = search.toLowerCase();
+    return matchTab && (!q || l.borrowerName.toLowerCase().includes(q) || (l.phone||"").includes(q) || (l.purpose||"").toLowerCase().includes(q) || (l.affiliation||"").toLowerCase().includes(q));
+  });
+
+  // ── Shared input styles ────────────────────────────────────────
+  const IS = { width:"100%", padding:"9px 12px", background:C.surface, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" };
+  const F  = ({label,value,onChange,placeholder,type="text",required=false}) => (
+    <div><FL>{label}{required&&<span style={{color:C.danger}}> *</span>}</FL>
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={IS}
+        onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}} />
+    </div>
+  );
+  const Sel = ({label,value,onChange,options}) => (
+    <div><FL>{label}</FL>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{...IS,cursor:"pointer"}}>
+        {options.map(o=><option key={o.v||o} value={o.v||o}>{o.l||o}</option>)}
+      </select>
+    </div>
+  );
+  const TA = ({label,value,onChange,placeholder}) => (
+    <div><FL>{label}</FL>
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} rows={2}
+        style={{...IS,resize:"vertical"}} onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}} />
+    </div>
+  );
+  const sf = k => v => setForm(p=>({...p,[k]:v}));
+
+  // ── NEW / EDIT FORM ───────────────────────────────────────────────
+  if (view==="new") return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={()=>{setView("list");setForm(blankForm);setEditId(null);}} style={{...BtnS(C.border,false,true),fontSize:12,padding:"6px 13px"}}>← Back</button>
+        <div><div style={{fontSize:18,fontWeight:700,color:C.goldLight}}>{editId?"Edit Loan":"New Loan"}</div>
+          <div style={{fontSize:12,color:C.textMuted}}>All amounts in RWF unless changed</div></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:14}}>
+        <div style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:13,padding:"18px 18px 14px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:14}}>👤 Borrower</div>
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <F label="Full Name" value={form.borrowerName} onChange={sf("borrowerName")} placeholder="Jean Paul Ndayishimiye" required />
+            <F label="Phone" value={form.phone} onChange={sf("phone")} placeholder="+250 7XX XXX XXX" type="tel" />
+            <F label="Email" value={form.email} onChange={sf("email")} type="email" />
+            <F label="Address" value={form.address} onChange={sf("address")} placeholder="Kigali, Nyarugenge" />
+            <Sel label="Category" value={form.category} onChange={sf("category")} options={CATEGORIES.map(c=>({v:c,l:c[0].toUpperCase()+c.slice(1)}))} />
+            <F label="Affiliation / Company" value={form.affiliation} onChange={sf("affiliation")} placeholder="e.g. Bender Exports – Nyamasheke" />
+          </div>
+        </div>
+        <div style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:13,padding:"18px 18px 14px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:14}}>💵 Loan Terms</div>
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <F label="Principal Amount" value={form.amount} onChange={sf("amount")} placeholder="0" type="number" required />
+            <Sel label="Currency" value={form.currency} onChange={sf("currency")} options={["RWF","USD","EUR","GBP"].map(v=>({v,l:v}))} />
+            <F label="Interest Rate (%)" value={form.interestRate} onChange={sf("interestRate")} placeholder="0 for interest-free" type="number" />
+            <Sel label="Interest Type" value={form.interestType} onChange={sf("interestType")} options={[{v:"flat",l:"Flat (one-time)"},{v:"compound",l:"Monthly Compound"}]} />
+            <F label="Date Issued" value={form.issuedDate} onChange={sf("issuedDate")} type="date" required />
+            <F label="Due Date" value={form.dueDate} onChange={sf("dueDate")} type="date" />
+          </div>
+        </div>
+        <div style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:13,padding:"18px 18px 14px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:14}}>📋 Details & Security</div>
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <TA label="Purpose / Reason" value={form.purpose} onChange={sf("purpose")} placeholder="What will the loan be used for?" />
+            <TA label="Collateral / Guarantee" value={form.collateral} onChange={sf("collateral")} placeholder="Land title, Vehicle, etc." />
+            <F label="Witness Name" value={form.witnessName} onChange={sf("witnessName")} placeholder="Full name" />
+            <F label="Witness Phone" value={form.witnessPhone} onChange={sf("witnessPhone")} type="tel" />
+            <TA label="Additional Notes" value={form.notes} onChange={sf("notes")} />
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:20}}>
+        <button onClick={()=>{setView("list");setForm(blankForm);setEditId(null);}} style={{...BtnS(C.border,false,true),fontSize:13,padding:"9px 18px"}}>Cancel</button>
+        <button onClick={saveLoan} style={{...BtnS(C.gold),fontSize:13,padding:"9px 22px"}}>{editId?"Save Changes":"Record Loan"} →</button>
+      </div>
+    </div>
+  );
+
+  // ── DETAIL VIEW ───────────────────────────────────────────────────
+  if (view==="detail" && activeLoan) {
+    const loan = activeLoan;
+    const bal  = getBalance(loan);
+    const paid = totalRepaid(loan);
+    const pct  = pctRepaid(loan);
+    const days = daysUntilDue(loan);
+    const st   = loanStatus(loan);
+    const principal = +loan.amount||0;
+    const interest  = Math.max(0, bal+paid-principal);
+    const SM = STATUS_META;
+    return (
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
+          <button onClick={()=>{setView("list");setActiveId(null);}} style={{...BtnS(C.border,false,true),fontSize:12,padding:"6px 13px"}}>← Back</button>
+          <div style={{flex:1}}/>
+          <button onClick={()=>startEdit(loan)} style={{...BtnS(C.info,false,true),fontSize:12,padding:"6px 14px"}}>✏ Edit</button>
+          <button onClick={()=>{if(confirm("Delete this loan?"))deleteLoan(loan.id);}} style={{...BtnS(C.danger,false,true),fontSize:12,padding:"6px 14px"}}>🗑 Delete</button>
+          {st!=="settled"&&<button onClick={()=>setShowRepay(true)} style={{...BtnS(C.gold),fontSize:12,padding:"6px 16px"}}>+ Record Repayment</button>}
+        </div>
+        <div style={{background:C.gradCard,border:`1px solid ${(SM[st]||SM.active).col}28`,borderRadius:14,padding:"20px 22px",marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:14,flexWrap:"wrap"}}>
+            <div style={{width:48,height:48,borderRadius:13,background:`${C.gold}15`,border:`2px solid ${C.gold}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>👤</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:20,fontWeight:700,color:C.text,marginBottom:2}}>{loan.borrowerName}</div>
+              <div style={{fontSize:12,color:C.textMuted,marginBottom:6}}>{loan.phone&&<span>{loan.phone}</span>}{loan.email&&<span> · {loan.email}</span>}{loan.affiliation&&<span> · {loan.affiliation}</span>}</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <STag loan={loan}/>
+                <span style={{background:`${C.gold}15`,color:C.gold,border:`1px solid ${C.gold}28`,borderRadius:20,padding:"2px 9px",fontSize:10,fontWeight:600}}>{loan.category}</span>
+                {days!==null&&st!=="settled"&&<span style={{background:days<0?`${C.danger}15`:days<7?`${C.warning}15`:`${C.success}15`,color:days<0?C.danger:days<7?C.warning:C.success,border:`1px solid ${days<0?C.danger:days<7?C.warning:C.success}28`,borderRadius:20,padding:"2px 9px",fontSize:10,fontWeight:600}}>{days<0?`${Math.abs(days)}d overdue`:days===0?"Due today":`${days}d remaining`}</span>}
+              </div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:22,fontWeight:800,color:C.goldLight}}>{fmtRWF(bal)}</div>
+              <div style={{fontSize:11,color:C.textDim}}>outstanding</div>
+            </div>
+          </div>
+          <div style={{marginTop:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.textMuted,marginBottom:5}}><span>Repayment progress</span><span>{pct}% paid</span></div>
+            <div style={{height:7,background:C.surface,borderRadius:6,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${pct}%`,background:pct>=100?C.success:pct>=50?C.gold:C.danger,borderRadius:6,transition:"width .4s"}}/>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:10,marginTop:16}}>
+            {[["Principal",fmtRWF(principal),C.text],["Interest",fmtRWF(interest),C.warning],["Total Due",fmtRWF(principal+interest),C.goldLight],["Paid",fmtRWF(paid),C.success],["Balance",fmtRWF(bal),st==="settled"?C.success:st==="overdue"?C.danger:C.info]].map(([label,val,col])=>(
+              <div key={label} style={{background:C.surface,borderRadius:9,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:C.textDim,marginBottom:3}}>{label}</div>
+                <div style={{fontSize:13,fontWeight:700,color:col}}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:14,marginBottom:16}}>
+          <div style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px"}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:12}}>Loan Terms</div>
+            {[["Issued",loan.issuedDate],["Due",loan.dueDate||"—"],["Interest",loan.interestRate?`${loan.interestRate}% (${loan.interestType})`:"Interest-free"],["Currency",loan.currency||"RWF"]].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
+                <span style={{color:C.textMuted}}>{k}</span><span style={{color:C.text,fontWeight:500}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px"}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:12}}>Security & Details</div>
+            {[["Purpose",loan.purpose||"—"],["Collateral",loan.collateral||"—"],["Witness",loan.witnessName?(loan.witnessName+(loan.witnessPhone?" · "+loan.witnessPhone:"")):"—"],["Notes",loan.notes||"—"]].map(([k,v])=>(
+              <div key={k} style={{padding:"6px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
+                <div style={{color:C.textDim,marginBottom:2}}>{k}</div><div style={{color:C.text}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"0.7px"}}>Repayment History ({(loan.repayments||[]).length})</div>
+            {st!=="settled"&&<button onClick={()=>setShowRepay(true)} style={{...BtnS(C.gold,true),fontSize:11,padding:"4px 12px"}}>+ Add</button>}
+          </div>
+          {!(loan.repayments||[]).length
+            ? <div style={{textAlign:"center",padding:"20px",color:C.textDim,fontSize:12}}>No repayments yet</div>
+            : <div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 110px 120px 90px 24px",gap:8,fontSize:10,fontWeight:700,color:C.textDim,padding:"0 6px 8px",borderBottom:`1px solid ${C.border}`}}>
+                  <span>Date</span><span>Amount</span><span>Method</span><span>Reference</span><span/>
+                </div>
+                {[...loan.repayments].reverse().map(r=>(
+                  <div key={r.id} style={{display:"grid",gridTemplateColumns:"1fr 110px 120px 90px 24px",gap:8,padding:"9px 6px",borderBottom:`1px solid ${C.border}22`,alignItems:"center",fontSize:12}}>
+                    <span style={{color:C.text}}>{r.date}</span>
+                    <span style={{color:C.success,fontWeight:700}}>{fmtRWF(r.amount)}</span>
+                    <span style={{color:C.textMuted}}>{(r.method||"").replace(/_/g," ")}</span>
+                    <span style={{color:C.textDim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.reference||"—"}</span>
+                    <button onClick={()=>{if(confirm("Remove this repayment?"))deleteRepayment(loan.id,r.id);}} style={{background:"transparent",border:"none",color:C.danger,cursor:"pointer",fontSize:13,padding:"2px 4px"}}>✕</button>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+        {showRepay&&<Modal title="Record Repayment" onClose={()=>{setShowRepay(false);setRepayForm(blankRepay);}}>
+          <div style={{marginBottom:12,display:"flex",justifyContent:"space-between",fontSize:12,color:C.textMuted,padding:"10px 14px",background:C.surface,borderRadius:9}}>
+            <span>Outstanding balance</span><span style={{fontWeight:700,color:C.goldLight}}>{fmtRWF(bal)}</span>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <F label="Amount Received" value={repayForm.amount} onChange={v=>setRepayForm(p=>({...p,amount:v}))} type="number" required />
+            <F label="Date Received" value={repayForm.date} onChange={v=>setRepayForm(p=>({...p,date:v}))} type="date" />
+            <div><FL>Payment Method</FL>
+              <select value={repayForm.method} onChange={e=>setRepayForm(p=>({...p,method:e.target.value}))} style={{...IS}}>
+                {METHODS.map(m=><option key={m} value={m}>{m.replace(/_/g," ")}</option>)}
+              </select>
+            </div>
+            <F label="Reference / Cheque No." value={repayForm.reference} onChange={v=>setRepayForm(p=>({...p,reference:v}))} placeholder="Optional" />
+            <TA label="Notes" value={repayForm.notes} onChange={v=>setRepayForm(p=>({...p,notes:v}))} />
+          </div>
+          <MF onCancel={()=>{setShowRepay(false);setRepayForm(blankRepay);}} onSave={recordRepayment} label="Save Repayment" color={C.success}/>
+        </Modal>}
+      </div>
+    );
+  }
+
+  // ── LIST VIEW ─────────────────────────────────────────────────────
+  const TABS = [["all","All"],["active","Active"],["overdue","Overdue"],["settled","Settled"]];
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:20,fontWeight:700,color:C.goldLight}}>💰 MD Loans</div>
+          <div style={{fontSize:12,color:C.textMuted}}>Private loan records — MD & Sudo only</div>
+        </div>
+        <button onClick={()=>{setForm(blankForm);setEditId(null);setView("new");}} style={{...BtnS(C.gold),fontSize:12,padding:"8px 18px"}}>+ New Loan</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12,marginBottom:20}}>
+        {[["Total Issued",fmtRWF(totalIssued),C.gold,loans.length+" loans"],["Outstanding",fmtRWF(totalOutstanding),C.danger,loans.filter(l=>loanStatus(l)!=="settled").length+" unpaid"],["Overdue",overdueCount+" loans",C.warning,overdueCount>0?"⚠ Needs attention":"All on time"],["Settled",totalSettled+" loans",C.success,"Fully repaid"]].map(([label,value,col,sub])=>(
+          <div key={label} style={{background:C.gradCard,border:`1px solid ${col}22`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:10,color:C.textDim,marginBottom:4}}>{label}</div>
+            <div style={{fontSize:16,fontWeight:800,color:col,marginBottom:2}}>{value}</div>
+            <div style={{fontSize:10,color:C.textMuted}}>{sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{display:"flex",gap:4}}>
+          {TABS.map(([key,label])=>{
+            const count = key==="all"?loans.length:loans.filter(l=>loanStatus(l)===key).length;
+            const active = filterTab===key;
+            const col = key==="overdue"?C.danger:key==="settled"?C.success:key==="active"?C.info:C.gold;
+            return <button key={key} onClick={()=>setFilterTab(key)} style={{...BtnS(active?col:C.border,!active,!active),fontSize:11,padding:"5px 12px"}}>
+              {label}{count>0&&<span style={{marginLeft:4,background:active?"transparent":col+"20",color:active?"inherit":col,padding:"1px 6px",borderRadius:20,fontSize:9,fontWeight:700}}>{count}</span>}
+            </button>;
+          })}
+        </div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, phone, purpose…"
+          style={{marginLeft:"auto",padding:"7px 12px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:12,outline:"none",minWidth:200}}
+          onFocus={e=>{e.target.style.borderColor=C.gold;}} onBlur={e=>{e.target.style.borderColor=C.border;}}/>
+      </div>
+      {loading&&<div style={{textAlign:"center",padding:"40px",color:C.textDim,fontSize:13}}>Loading loans…</div>}
+      {!loading&&filtered.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:C.textDim}}>
+        <div style={{fontSize:40,marginBottom:12}}>💰</div>
+        <div style={{fontSize:14}}>{loans.length===0?"No loans recorded yet.":"No loans match your filter."}</div>
+      </div>}
+      {filtered.map(loan=>{
+        const bal = getBalance(loan); const paid = totalRepaid(loan); const pct = pctRepaid(loan);
+        const st  = loanStatus(loan); const days = daysUntilDue(loan); const col = STATUS_META[st].col;
+        return (
+          <div key={loan.id} onClick={()=>{setActiveId(loan.id);setView("detail");setShowRepay(false);}}
+            style={{background:C.gradCard,border:`1px solid ${col}20`,borderRadius:13,padding:"16px 18px",marginBottom:10,cursor:"pointer",transition:"border-color .15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=col+"50";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=col+"20";}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                  <span style={{fontSize:15,fontWeight:700,color:C.text}}>{loan.borrowerName}</span>
+                  <STag loan={loan}/>
+                  <span style={{fontSize:10,color:C.textDim,background:C.surface,padding:"2px 8px",borderRadius:20}}>{loan.category}</span>
+                  {days!==null&&st!=="settled"&&<span style={{fontSize:10,color:days<0?C.danger:days<7?C.warning:C.textMuted}}>{days<0?`${Math.abs(days)}d overdue`:days===0?"Due today":`${days}d left`}</span>}
+                </div>
+                <div style={{fontSize:11,color:C.textMuted,marginBottom:8}}>
+                  {loan.phone&&<span>{loan.phone}</span>}{loan.affiliation&&<span> · {loan.affiliation}</span>}
+                  {loan.purpose&&<span> · {loan.purpose.slice(0,60)}{loan.purpose.length>60?"…":""}</span>}
+                </div>
+                <div style={{height:4,background:C.surface,borderRadius:4,overflow:"hidden",marginBottom:4}}>
+                  <div style={{height:"100%",width:`${pct}%`,background:pct>=100?C.success:pct>=50?C.gold:col,borderRadius:4}}/>
+                </div>
+                <div style={{display:"flex",gap:16,fontSize:11,color:C.textDim}}>
+                  <span>Issued <span style={{color:C.text}}>{loan.issuedDate}</span></span>
+                  {loan.dueDate&&<span>Due <span style={{color:C.text}}>{loan.dueDate}</span></span>}
+                  <span>Paid <span style={{color:C.success}}>{fmtRWF(paid)}</span></span>
+                  {(loan.repayments||[]).length>0&&<span>{(loan.repayments||[]).length} payment{(loan.repayments||[]).length>1?"s":""}</span>}
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:18,fontWeight:800,color:st==="settled"?C.success:col}}>{fmtRWF(bal)}</div>
+                <div style={{fontSize:10,color:C.textDim}}>of {fmtRWF(+loan.amount||0)}</div>
+                <div style={{fontSize:10,color:C.textDim,marginTop:2}}>{pct}% repaid</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
   const { cherry, expenses, cashbook, bankTx, stock, debts, cwsList,
           machTx, fundRequests, farmers: farmers2, users, seasons } = useApp();
 
@@ -4075,7 +6513,7 @@ const IMPORT_SCHEMAS = {
     fields: [
       { key: "name",      aliases: ["name","farmer name","full name","nom"],            required: true,  type: "str" },
       { key: "farmerId",  aliases: ["farmer id","code","farmer code","id code","code"], required: false, type: "str" },
-      { key: "grp",       aliases: ["grp","group","groupe","cooperative","coop"],        required: false, type: "str" },
+      { key: "group",     aliases: ["group","groupe","cooperative","coop"],             required: false, type: "str" },
       { key: "phone",     aliases: ["phone","tel","telephone","contact","mobile"],      required: false, type: "str" },
     ],
     build: (row, ctx) => ({
@@ -4105,7 +6543,7 @@ const IMPORT_SCHEMAS = {
       return {
         id: uid(), cwsId: ctx.cwsId, status: "pending",
         paymentMethod: null, paidBy: null, paidAt: null,
-        byUser: ctx.userId, date: row.date || today(),
+        by: ctx.userId, date: row.date || today(),
         standardKg: stdKg, flotantKg: fltKg,
         totalKg: stdKg + fltKg,
         rateStandard: rateS, rateFlotant: rateF,
@@ -4127,7 +6565,7 @@ const IMPORT_SCHEMAS = {
       { key: "ref",         aliases: ["ref","reference","receipt","voucher"],          required: false, type: "str" },
     ],
     build: (row, ctx) => ({
-      id: uid(), cwsId: ctx.cwsId, balance: 0, byUser: ctx.userId,
+      id: uid(), cwsId: ctx.cwsId, balance: 0, by: ctx.userId,
       type: (row.type||"").toLowerCase().includes("out") ? "outflow" : "inflow",
       ...row, amount: +(row.amount||0),
     }),
@@ -4142,8 +6580,8 @@ const IMPORT_SCHEMAS = {
       { key: "amount",      aliases: ["amount","montant","rwf"],                      required: true,  type: "num" },
     ],
     build: (row, ctx) => ({
-      id: uid(), cwsId: ctx.cwsId, status: "pending", byUser: ctx.userId,
-      capitalizable: true, ...row, amount: +(row.amount||0),
+      id: uid(), cwsId: ctx.cwsId, status: "pending", by: ctx.userId,
+      exploitable: true, ...row, amount: +(row.amount||0),
     }),
   },
   debts: {
