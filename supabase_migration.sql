@@ -436,3 +436,323 @@ begin;
     public.driver_logs, public.leaves, public.mach_tx,
     public.expenses, public.debts, public.stock;
 commit;
+
+-- ============================================================
+-- Migration v2.1.0 — Loans + Chat
+-- Run this after v2.0.0 has already been applied
+-- ============================================================
+
+-- ── MD Loans ─────────────────────────────────────────────────────────
+create table if not exists public.loans (
+  id              text primary key,
+  -- Borrower
+  borrower_name   text not null,
+  phone           text,
+  email           text,
+  address         text,
+  category        text default 'individual',   -- individual|company|station|project|other
+  affiliation     text,
+  -- Loan terms
+  amount          bigint not null,
+  currency        text default 'RWF',
+  interest_rate   numeric default 0,
+  interest_type   text default 'flat',          -- flat|compound
+  issued_date     date not null,
+  due_date        date,
+  -- Details
+  purpose         text,
+  collateral      text,
+  witness_name    text,
+  witness_phone   text,
+  notes           text,
+  -- Meta
+  created_by      uuid references auth.users(id),
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+
+create table if not exists public.loan_repayments (
+  id           text primary key,
+  loan_id      text not null references public.loans(id) on delete cascade,
+  amount       bigint not null,
+  date         date not null,
+  method       text default 'cash',            -- cash|bank_transfer|mobile_money|cheque|other
+  reference    text,
+  notes        text,
+  recorded_by  uuid references auth.users(id),
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now()
+);
+
+-- ── Chat ─────────────────────────────────────────────────────────────
+-- Only custom rooms are stored here.
+-- Auto-rooms (per-station, per-driver, HQ) are built client-side.
+create table if not exists public.chat_rooms (
+  id          text primary key,
+  name        text not null,
+  icon        text default '💬',
+  type        text default 'custom',
+  color       text default '#9A5EE0',
+  member_ids  text[] default '{}',
+  created_by  uuid references auth.users(id),
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+
+create table if not exists public.chat_messages (
+  id          text primary key,
+  room_id     text not null references public.chat_rooms(id) on delete cascade,
+  sender_id   uuid references auth.users(id),
+  sender_name text,
+  sender_role text,
+  text        text not null,
+  created_at  timestamptz default now()
+);
+
+create index if not exists chat_messages_room_id_idx on public.chat_messages(room_id, created_at desc);
+create index if not exists loan_repayments_loan_id_idx on public.loan_repayments(loan_id);
+create index if not exists loans_created_by_idx on public.loans(created_by);
+
+-- ── updated_at triggers for new tables ───────────────────────────────
+do $$ declare t text;
+begin for t in select unnest(array[
+  'loans','loan_repayments','chat_rooms'
+]) loop
+  execute format($f$
+    drop trigger if exists set_updated_at on public.%I;
+    create trigger set_updated_at before update on public.%I
+    for each row execute procedure public.set_updated_at();
+  $f$, t, t);
+end loop; end $$;
+
+-- ── RLS for new tables ────────────────────────────────────────────────
+alter table public.loans             enable row level security;
+alter table public.loan_repayments   enable row level security;
+alter table public.chat_rooms        enable row level security;
+alter table public.chat_messages     enable row level security;
+
+-- Loans: only md + sudo (server uses service-role key so these only
+-- protect direct anon/authenticated client access)
+create policy "loans_md_only" on public.loans
+  for all using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('md','sudo')
+    )
+  );
+
+create policy "loan_repayments_md_only" on public.loan_repayments
+  for all using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('md','sudo')
+    )
+  );
+
+-- Chat rooms: visible to members
+create policy "chat_rooms_member_read" on public.chat_rooms
+  for select using (auth.uid()::text = any(member_ids) or
+    exists (select 1 from public.profiles where id = auth.uid() and role in ('sudo','md','admin'))
+  );
+
+create policy "chat_rooms_admin_write" on public.chat_rooms
+  for all using (
+    exists (select 1 from public.profiles where id = auth.uid() and role in ('sudo','md','admin'))
+  );
+
+-- Chat messages: readable by room members
+create policy "chat_messages_read" on public.chat_messages
+  for select using (
+    exists (
+      select 1 from public.chat_rooms
+      where id = room_id
+        and (auth.uid()::text = any(member_ids) or
+             exists (select 1 from public.profiles where id = auth.uid() and role in ('sudo','md','admin')))
+    )
+  );
+
+create policy "chat_messages_insert" on public.chat_messages
+  for insert with check (auth.uid() = sender_id);
+
+create policy "chat_messages_delete" on public.chat_messages
+  for delete using (
+    auth.uid() = sender_id or
+    exists (select 1 from public.profiles where id = auth.uid() and role in ('sudo','md','admin'))
+  );
+
+-- ── Add new tables to Realtime publication ───────────────────────────
+-- Run this block separately if the publication already exists:
+alter publication supabase_realtime add table public.chat_messages;
+alter publication supabase_realtime add table public.chat_rooms;
+-- (loans are private — no realtime needed)
+
+-- ============================================================
+-- Migration v2.2.0 — HQ Field Requisition columns
+-- Adds missing columns to fund_requests for hq_field_req type.
+-- Run in Supabase → SQL Editor → Run
+-- ============================================================
+
+-- New columns for HQ field requisitions (type = 'hq_field_req')
+-- All are nullable so existing station fund requests are unaffected.
+alter table public.fund_requests
+  add column if not exists type                 text default 'station',
+  add column if not exists dept                 text,
+  add column if not exists requested_by_name    text,
+  add column if not exists activity             text,
+  add column if not exists destination          text,
+  add column if not exists travel_dates         text,
+  add column if not exists items                jsonb,
+  add column if not exists finance_approved_by  text,
+  add column if not exists finance_approved_at  text,
+  add column if not exists finance_notes        text,
+  add column if not exists cheque_released_by   text,
+  add column if not exists cheque_released_at   text,
+  add column if not exists cheque_no            text,
+  add column if not exists release_method       text,
+  add column if not exists release_notes        text;
+
+-- Back-fill type for all existing station requests
+update public.fund_requests
+  set type = 'station'
+  where type is null;
+
+-- Index for filtering by type (station vs hq_field_req)
+create index if not exists fund_requests_type_idx on public.fund_requests(type);
+
+-- Index for filtering by status (pending_finance_approval, pending_md_release, etc.)
+create index if not exists fund_requests_status_idx on public.fund_requests(status);
+
+-- ============================================================
+-- Migration v2.3.0 — Warehouse Stock Movements
+-- ============================================================
+
+create table if not exists public.warehouse_movements (
+  id               text primary key,
+  direction        text not null check (direction in ('in','out')),
+  kg               numeric not null,
+  grade            text default 'Parchment',
+  location         text not null,        -- coming-from or going-to
+  lot_number       text,
+  gnr_refs         text,
+  driver_id        text,                 -- optional ref to profiles.id
+  driver_name      text,
+  plate_number     text,
+  notes            text,
+  date             date not null,
+  recorded_by      text,                 -- profiles.id of who recorded
+  recorded_by_name text,
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
+);
+
+create index if not exists warehouse_movements_date_idx      on public.warehouse_movements(date desc);
+create index if not exists warehouse_movements_direction_idx on public.warehouse_movements(direction);
+create index if not exists warehouse_movements_driver_idx    on public.warehouse_movements(driver_id);
+
+-- updated_at trigger
+drop trigger if exists set_updated_at on public.warehouse_movements;
+create trigger set_updated_at before update on public.warehouse_movements
+  for each row execute procedure public.set_updated_at();
+
+-- RLS
+alter table public.warehouse_movements enable row level security;
+
+create policy "authenticated_read" on public.warehouse_movements
+  for select using (auth.role() = 'authenticated');
+
+-- Add to Realtime publication
+alter publication supabase_realtime add table public.warehouse_movements;
+
+-- ============================================================
+-- Migration v2.4.0 — CWS Stock: sent_to_warehouse flag
+-- Adds columns to stock table to track warehouse dispatches.
+-- ============================================================
+
+alter table public.stock
+  add column if not exists sent_to_warehouse boolean default false,
+  add column if not exists warehouse_ref     text;
+
+-- Index for quick filtering of warehouse-sent movements
+create index if not exists stock_sent_to_warehouse_idx on public.stock(sent_to_warehouse) where sent_to_warehouse = true;
+
+-- Also add from_cws_id to warehouse_movements so we know which station sent stock
+alter table public.warehouse_movements
+  add column if not exists from_cws_id text references public.cws(id);
+
+create index if not exists warehouse_movements_from_cws_idx on public.warehouse_movements(from_cws_id);
+
+-- ============================================================
+-- Migration v2.5.0 — Export Contracts
+-- ============================================================
+
+create table if not exists public.contracts (
+  id               text primary key,
+  -- Buyer
+  contract_ref     text,
+  company_name     text not null,
+  company_country  text,
+  contact_person   text,
+  contact_email    text,
+  contact_phone    text,
+  -- Terms
+  grade            text,
+  agreed_tonnes    numeric not null,
+  rate_per_kg      numeric not null,
+  currency         text default 'USD',
+  total_value      numeric,
+  -- Dates & logistics
+  contract_date    date not null,
+  delivery_date    date,
+  delivery_port    text,
+  payment_terms    text,
+  status           text default 'active',
+  notes            text,
+  -- Meta
+  created_by       uuid references auth.users(id),
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
+);
+
+create table if not exists public.contract_deliveries (
+  id                text primary key,
+  contract_id       text not null references public.contracts(id) on delete cascade,
+  delivered_tonnes  numeric not null,
+  grade             text,
+  shipment_ref      text,
+  bl_number         text,
+  date              date not null,
+  notes             text,
+  recorded_by       uuid references auth.users(id),
+  recorded_at       timestamptz,
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
+);
+
+create index if not exists contracts_status_idx          on public.contracts(status);
+create index if not exists contracts_delivery_date_idx   on public.contracts(delivery_date);
+create index if not exists contracts_company_country_idx on public.contracts(company_country);
+create index if not exists contract_deliveries_contract_idx on public.contract_deliveries(contract_id);
+
+-- updated_at triggers
+do $$ declare t text;
+begin for t in select unnest(array['contracts','contract_deliveries']) loop
+  execute format($f$
+    drop trigger if exists set_updated_at on public.%I;
+    create trigger set_updated_at before update on public.%I
+    for each row execute procedure public.set_updated_at();
+  $f$, t, t);
+end loop; end $$;
+
+-- RLS
+alter table public.contracts            enable row level security;
+alter table public.contract_deliveries  enable row level security;
+
+create policy "contracts_md_only" on public.contracts
+  for all using (
+    exists (select 1 from public.profiles where id = auth.uid() and role in ('md','sudo'))
+  );
+
+create policy "contract_deliveries_md_only" on public.contract_deliveries
+  for all using (
+    exists (select 1 from public.profiles where id = auth.uid() and role in ('md','sudo'))
+  );
