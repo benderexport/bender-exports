@@ -287,7 +287,7 @@ const apiFetch = async (path, opts = {}) => {
     }
     localStorage.removeItem("bender_token");
     localStorage.removeItem("bender_refresh");
-    window.location.reload();
+    localStorage.removeItem("bender_user");
   }
   return res;
 };
@@ -389,7 +389,9 @@ function App() {
   const [leaves, setLeavesRaw] = useState(INIT_LEAVES);
   const [pending, setPendingRaw] = useState(INIT_PENDING);
   const [system, setSystemRaw] = useState(INIT_SYSTEM);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { const s = localStorage.getItem("bender_user"); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
   const [online, setOnline] = useState(typeof window.__benderOnline !== 'undefined' ? window.__benderOnline : navigator.onLine);
 
   // When the device comes back online: flush queued ops, then pull latest data
@@ -754,9 +756,22 @@ function App() {
       // Plain fetch is used (not apiFetch) to avoid the 401→reload loop
       // that apiFetch triggers when no token is stored yet.
       try {
-        const token = localStorage.getItem("bender_token");
+        let token = localStorage.getItem("bender_token");
 
-        // If returning user has a token, flush offline ops first so we
+        // Validate JWT expiry before using it — a stale token causes 401 loops
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+              localStorage.removeItem("bender_token");
+              localStorage.removeItem("bender_refresh");
+              localStorage.removeItem("bender_user");
+              token = null;
+            }
+          } catch(_) {}
+        }
+
+        // If returning user has a valid token, flush offline ops first so we
         // don't overwrite changes they made while offline.
         if (token) {
           setLoadingStatus("Syncing offline changes…");
@@ -954,6 +969,7 @@ function App() {
     const u = await login(e, p);
     if (u) {
       setCurrentUser(u);
+      try { localStorage.setItem("bender_user", JSON.stringify(u)); } catch(_) {}
       // After login we have a real token — flush offline ops then re-pull
       // so any token-gated data (e.g. role-filtered views) is loaded fresh.
       setDbReady(false);
@@ -998,13 +1014,17 @@ function App() {
             setUsersRaw(m); DB.save("users", m);
           }
         }
-      } catch(_) {}
-      setDbReady(true);
+      } catch(err) {
+        console.warn("[Bender] Post-login pull failed:", err.message);
+      } finally {
+        setDbReady(true);
+      }
     }
     return !!u;
   }} system={system} /></Ctx.Provider>;
   return <Ctx.Provider value={ctx}><style>{GS}</style><Shell onLogout={() => {
     localStorage.removeItem("bender_token");
+    localStorage.removeItem("bender_user");
     // Clear the token from the service worker so it stops background syncs
     swNotify("SET_TOKEN", { token: null });
     setCurrentUser(null);
@@ -3957,7 +3977,7 @@ function ChatPage() {
     setShowManage(null);
     addNote("Chat room deleted", "warning");
   };
-  const createRoom = () => {
+  const createRoom = async () => {
     if (!newRoomForm.name.trim()) return addNote("Enter a room name", "warning");
     if (newRoomForm.memberIds.length < 1) return addNote("Add at least one member", "warning");
     const memberIds = [...new Set([...newRoomForm.memberIds, u.id])];
@@ -4138,7 +4158,7 @@ function ChatPage() {
   const NewRoomModal = () => {
     const [form, setForm] = useState({ name:"", memberIds:[] });
     const toggle = (id) => setForm(p => ({ ...p, memberIds: p.memberIds.includes(id) ? p.memberIds.filter(x=>x!==id) : [...p.memberIds,id] }));
-    const doCreate = () => {
+    const doCreate = async () => {
       if (!form.name.trim()) return addNote("Enter a room name","warning");
       if (form.memberIds.length < 1) return addNote("Add at least one member","warning");
       const memberIds = [...new Set([...form.memberIds, u.id])];
