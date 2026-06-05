@@ -3665,7 +3665,7 @@ function FieldRequisitionPage() {
     {tab === "list" && <>
       {reqs.length === 0 && <div style={{ textAlign:"center", padding:"48px 20px", color:C.textMuted, fontSize:13 }}>
         <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
-        No requisitions yet.{canSubmitFieldReq(u.role) ? " Click "+ New Requisition" to create one." : ""}
+        No requisitions yet.{canSubmitFieldReq(u.role) ? ' Click "+ New Requisition" to create one.' : ""}
       </div>}
 
       {grouped.pending_finance_approval.length > 0 && <div style={{ marginBottom:16 }}>
