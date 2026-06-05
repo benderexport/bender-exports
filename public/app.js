@@ -704,10 +704,9 @@ function App() {
   const setSystem = mkSet(setSystemRaw, "system");
   useEffect(() => {
     async function init() {
+      console.log("[Bender BOOT] init() started");
       try {
-        // ── Supabase-first boot ───────────────────────────────────────
-        // Wipe any old demo localStorage from previous versions.
-        // SEED_VERSION bump ensures every machine runs this once.
+        console.log("[Bender BOOT] Step 1: checking seed...");
         if (!await DB.isSeeded()) {
           DB.reset(); // clears all db:* keys and old seed flag
           await DB.markSeeded(); // mark done so this only runs once per version
@@ -753,6 +752,7 @@ function App() {
       } catch (e) {
         console.error("DB init error", e);
       }
+      console.log("[Bender BOOT] Step 2: localStorage loaded");
       // NOTE: setDbReady(true) is called AFTER the server pull below,
       // so the app never renders with stale/empty data.
 
@@ -763,6 +763,7 @@ function App() {
       // Plain fetch is used (not apiFetch) to avoid the 401→reload loop
       // that apiFetch triggers when no token is stored yet.
       try {
+        console.log("[Bender BOOT] Step 3: starting server pull...");
         let token = localStorage.getItem("bender_token");
 
         // Validate JWT expiry before using it — a stale token causes 401 loops
@@ -782,6 +783,7 @@ function App() {
         // don't overwrite changes they made while offline.
         if (token) {
           setLoadingStatus("Syncing offline changes…");
+          console.log("[Bender BOOT] Step 4: flushing offline queue...");
           try {
             await Promise.race([
               flushOfflineQueue(),
@@ -791,6 +793,7 @@ function App() {
         }
 
         setLoadingStatus("Fetching data from database…");
+        console.log("[Bender BOOT] Step 5: calling /api/pull...");
 
         const headers = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -876,6 +879,7 @@ function App() {
       } catch (e) {
         console.warn("[Bender] Server pull failed on boot:", e.message);
       } finally {
+        console.log("[Bender BOOT] Step 6: setDbReady(true) — init complete");
         setDbReady(true);
       }
     }
