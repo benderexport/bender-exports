@@ -247,22 +247,29 @@ const uid = () => typeof crypto !== "undefined" && crypto.randomUUID
     });
 
 // Global authenticated fetch — attaches Bearer token from localStorage automatically
+// Wraps fetch with an AbortController timeout (default 10s)
+const fetchWithTimeout = (url, opts = {}, ms = 10000) => {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+};
+
 const apiFetch = async (path, opts = {}) => {
   const token = localStorage.getItem("bender_token");
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     ...opts,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       ...(opts.headers || {})
     }
-  });
+  }, 12000);
   if (res.status === 401) {
     // Try to refresh the token before giving up
     const refresh = localStorage.getItem("bender_refresh");
     if (refresh) {
       try {
-        const rfRes = await fetch("/api/auth/refresh", {
+        const rfRes = await fetchWithTimeout("/api/auth/refresh", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh_token: refresh }),
@@ -775,7 +782,12 @@ function App() {
         // don't overwrite changes they made while offline.
         if (token) {
           setLoadingStatus("Syncing offline changes…");
-          await flushOfflineQueue();
+          try {
+            await Promise.race([
+              flushOfflineQueue(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("flush timeout")), 6000))
+            ]);
+          } catch(_) {} // timeout or error — continue anyway
         }
 
         setLoadingStatus("Fetching data from database…");
@@ -785,7 +797,7 @@ function App() {
 
         // ── Pull all tables ───────────────────────────────────────────
         const lastSync = "1970-01-01T00:00:00Z";
-        const res = await fetch(`/api/pull?since=${encodeURIComponent(lastSync)}`, { headers });
+        const res = await fetchWithTimeout(`/api/pull?since=${encodeURIComponent(lastSync)}`, { headers }, 8000);
         if (res.ok) {
           const { delta } = await res.json();
           if (delta) {
@@ -832,7 +844,7 @@ function App() {
         }
 
         // ── Pull users ────────────────────────────────────────────────
-        const usersRes = await fetch("/api/users", { headers });
+        const usersRes = await fetchWithTimeout("/api/users", { headers }, 8000);
         if (usersRes.ok) {
           const serverUsers = await usersRes.json();
           if (Array.isArray(serverUsers) && serverUsers.length > 0) {
@@ -974,12 +986,17 @@ function App() {
       // so any token-gated data (e.g. role-filtered views) is loaded fresh.
       setDbReady(false);
       setLoadingStatus("Loading your data…");
-      await flushOfflineQueue();
+      try {
+        await Promise.race([
+          flushOfflineQueue(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("flush timeout")), 6000))
+        ]);
+      } catch(_) {} // timeout or network error — continue anyway
       setLoadingStatus("Pulling latest data from server…");
       const token = localStorage.getItem("bender_token");
       const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
       try {
-        const res = await fetch("/api/pull?since=1970-01-01T00%3A00%3A00Z", { headers });
+        const res = await fetchWithTimeout("/api/pull?since=1970-01-01T00%3A00%3A00Z", { headers }, 8000);
         if (res.ok) {
           const { delta } = await res.json();
           if (delta) {
@@ -1006,7 +1023,7 @@ function App() {
             }
           }
         }
-        const usersRes = await fetch("/api/users", { headers });
+        const usersRes = await fetchWithTimeout("/api/users", { headers }, 8000);
         if (usersRes.ok) {
           const su = await usersRes.json();
           if (Array.isArray(su) && su.length > 0) {
