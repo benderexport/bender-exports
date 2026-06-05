@@ -5329,6 +5329,8 @@ function LoansPage() {
     </div>
   );
 }
+
+function ReportsPage() {
   const { cherry, expenses, cashbook, bankTx, stock, debts, cwsList,
           machTx, fundRequests, farmers: farmers2, users, seasons } = useApp();
 
