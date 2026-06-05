@@ -595,6 +595,98 @@ app.post("/api/seed-profiles", auth, requireRoles("sudo"), async (req, res) => {
   res.json({ ok: true, results });
 });
 
+
+// ── Chat Rooms & Messages ─────────────────────────────────────────────
+// Rooms are stored in the "chat_rooms" table, messages in "chat_messages".
+// Auto-generated rooms (CWS stations, HQ General) are built client-side;
+// only custom rooms created by md/admin are persisted here.
+
+// GET /api/chat/rooms — list custom rooms the user is a member of
+app.get("/api/chat/rooms", auth, async (req, res) => {
+  try {
+    const r = await sbFetch("chat_rooms?select=*&order=created_at.asc");
+    if (!r.ok) return res.json([]);
+    const rows = await r.json();
+    // Only return rooms where the user is a member (or user is sudo/md/admin)
+    const isAdmin = ["sudo","md","admin"].includes(req.user.role);
+    const filtered = rows.filter(room => {
+      const members = room.member_ids || room.memberIds || [];
+      return isAdmin || members.includes(req.user.id);
+    });
+    res.json(filtered);
+  } catch(e) { res.json([]); }
+});
+
+// POST /api/chat/rooms — create a new custom room
+app.post("/api/chat/rooms", auth, async (req, res) => {
+  try {
+    const { id, name, icon, type, color, memberIds, member_ids, createdBy } = req.body;
+    const payload = {
+      id: id || require("crypto").randomUUID(),
+      name, icon: icon || "💬", type: type || "custom", color: color || "#9A5EE0",
+      member_ids: memberIds || member_ids || [],
+      created_by: createdBy || req.user.id,
+      created_at: new Date().toISOString(),
+    };
+    const r = await sbFetch("chat_rooms", { method: "POST", body: JSON.stringify(payload) });
+    res.status(r.ok ? 201 : 400).json(r.ok ? payload : { error: "Failed to create room" });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/chat/rooms/:id — update room members
+app.put("/api/chat/rooms/:id", auth, async (req, res) => {
+  try {
+    const { memberIds, member_ids } = req.body;
+    const payload = { member_ids: memberIds || member_ids };
+    const r = await sbFetch(`chat_rooms?id=eq.${req.params.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+    res.status(r.ok ? 200 : 400).json({ ok: r.ok });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/chat/rooms/:id — delete a room and its messages
+app.delete("/api/chat/rooms/:id", auth, requireRoles("sudo","md","admin"), async (req, res) => {
+  try {
+    await sbFetch(`chat_messages?room_id=eq.${req.params.id}`, { method: "DELETE" });
+    const r = await sbFetch(`chat_rooms?id=eq.${req.params.id}`, { method: "DELETE" });
+    res.json({ ok: r.ok });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/chat/rooms/:id/messages — last N messages
+app.get("/api/chat/rooms/:id/messages", auth, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || "100"), 200);
+    const r = await sbFetch(`chat_messages?room_id=eq.${req.params.id}&order=created_at.asc&limit=${limit}`);
+    if (!r.ok) return res.json([]);
+    const rows = await r.json();
+    res.json(rows.map(m => ({
+      id: m.id, roomId: m.room_id, senderId: m.sender_id,
+      senderName: m.sender_name, senderRole: m.sender_role,
+      senderAvatar: m.sender_avatar, text: m.text,
+      ts: new Date(m.created_at).getTime(), createdAt: m.created_at,
+    })));
+  } catch(e) { res.json([]); }
+});
+
+// POST /api/chat/rooms/:id/messages — save a message
+app.post("/api/chat/rooms/:id/messages", auth, async (req, res) => {
+  try {
+    const { id, senderId, senderName, senderRole, senderAvatar, text, ts } = req.body;
+    const payload = {
+      id: id || require("crypto").randomUUID(),
+      room_id: req.params.id,
+      sender_id: senderId || req.user.id,
+      sender_name: senderName || req.user.name,
+      sender_role: senderRole || req.user.role,
+      sender_avatar: senderAvatar || "",
+      text,
+      created_at: ts ? new Date(ts).toISOString() : new Date().toISOString(),
+    };
+    const r = await sbFetch("chat_messages", { method: "POST", body: JSON.stringify(payload) });
+    res.status(r.ok ? 201 : 400).json({ ok: r.ok });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Health ────────────────────────────────────────────────────────────
 app.get("/api/health", (_, res) => res.json({ ok: true, version: "2.0.0", db: "supabase", time: new Date().toISOString() }));
 
