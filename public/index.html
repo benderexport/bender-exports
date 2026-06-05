@@ -51,13 +51,8 @@
   <!-- React + Recharts from CDN (cached by SW after first load) -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Recharts: primary CDN with automatic fallback -->
+  <!-- Recharts: load from CDN, no document.write fallback (blocked by browsers) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.4/Recharts.js" crossorigin></script>
-  <script>
-  if (typeof Recharts === "undefined" || typeof Recharts.ResponsiveContainer === "undefined") {
-    document.write('<scr'+'ipt src="https://unpkg.com/recharts@2.10.4/umd/Recharts.js" crossorigin><\/scr'+'ipt>');
-  }
-  </script>
 
   <!-- Babel Standalone — transforms JSX to JS in the browser -->
   <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js" crossorigin></script>
