@@ -3090,8 +3090,6 @@ function WarehousePage() {
   const pending    = warehouseStock.filter(w => w.status === "pending");
   const confirmed  = warehouseStock.filter(w => w.status === "confirmed");
 
-  const kgBalance = kgIn - kgOut;
-
   // ── Filtered movements ─────────────────────────────────────────
   const movements = [...warehouseMovements]
     .filter(m => filterDir === "all" || m.direction === filterDir)
