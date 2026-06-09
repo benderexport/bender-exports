@@ -220,7 +220,229 @@ const inpS = () => ({
   color: C.text, fontSize: 12, fontFamily: "'Inter',sans-serif",
   outline: "none",
 });
-const selS = () => (
+nst C = {
+  // Base
+  bg:       "#0A0F0A",
+  bgCard:   "#111714",
+  bgDeep:   "#0D1210",
+  surface:  "#161E17",
+  surfaceHover: "#1C2720",
+  // Borders
+  border:      "#1F2E21",
+  borderLight: "#2A3E2C",
+  borderGlow:  "#C8A84B30",
+  // Text
+  text:      "#EDF2ED",
+  textMuted: "#7A9A7C",
+  textDim:   "#3E5C40",
+  // Brand gold
+  gold:      "#C8A84B",
+  goldLight: "#E4C46A",
+  goldDim:   "#7A6020",
+  goldGlow:  "#C8A84B20",
+  // Coffee / Cherry
+  coffee:    "#C4793C",
+  coffeeLight:"#E8965A",
+  coffeeBg:  "#1A0E06",
+  // Machinery
+  machinery:     "#4A8EC8",
+  machineryLight:"#6AAEE8",
+  machineryBg:   "#060F1A",
+  // Construction
+  construction:      "#9A6A30",
+  constructionLight: "#C8903E",
+  constructionBg:    "#1A1006",
+  // Semantic
+  danger:      "#E05050",
+  dangerLight: "#F07070",
+  dangerBg:    "#1A0808",
+  success:     "#4EC866",
+  successBg:   "#081A0C",
+  warning:     "#E0A030",
+  warningLight:"#F0C050",
+  warningBg:   "#1A1208",
+  info:        "#4A98E0",
+  infoBg:      "#080F1A",
+  purple:      "#9A5EE0",
+  purpleLight: "#BA80F8",
+  purpleBg:    "#100816",
+  // Gradients (used as strings)
+  gradSidebar: "linear-gradient(180deg,#0E1A0F 0%,#0A0F0A 100%)",
+  gradGold:    "linear-gradient(135deg,#C8A84B,#E4C46A)",
+  gradCard:    "linear-gradient(145deg,#141C15,#111714)",
+};
+const FONT = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cormorant:wght@400;600;700&display=swap');`;
+const GS = `${FONT}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:${C.bg};color:${C.text};overflow:auto;-webkit-font-smoothing:antialiased;}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:${C.border};border-radius:10px;}
+::-webkit-scrollbar-thumb:hover{background:${C.borderLight};}
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes slideIn{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes scaleIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+/* Typography */
+input,select,textarea,button{font-family:'Inter',sans-serif;}
+/* Layout helpers */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
+/* Card hover lift */
+.card-hover{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;}
+.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+/* Nav item */
+.nav-item{transition:all .18s ease;border-radius:10px;cursor:pointer;}
+.nav-item:hover{background:${C.surfaceHover};}
+.nav-item.active{background:linear-gradient(135deg,${C.gold}22,${C.gold}0A);border:1px solid ${C.gold}30;}
+/* Button base */
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;border-radius:8px;transition:all .18s ease;}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+/* Table row */
+.tbl-row{transition:background .12s;}
+.tbl-row:hover{background:${C.surfaceHover}!important;}
+/* Input focus */
+.inp:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px ${C.gold}15;}
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;}
+/* Responsive */
+@media(max-width:768px){
+  .two-col{grid-template-columns:1fr!important;}
+  .hide-mobile{display:none!important;}
+  .show-mobile{display:flex!important;}
+  .main-content{margin-left:0!important;}
+  .page-pad{padding:14px!important;}
+  .topbar-title{font-size:16px!important;}
+  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
+}
+@media(min-width:769px){
+  .show-mobile{display:none!important;}
+}`;
+const Ctx = createContext(null);
+const useApp = () => useContext(Ctx);
+// ── Seed data removed — Supabase is the only source of truth ────────
+// All data is pulled from Supabase on boot. Nothing is hardcoded here.
+// To add initial data, use seed_users.js or insert directly in Supabase.
+const INIT_CWS             = [];
+const INIT_FARMERS         = [];
+const INIT_CHERRY          = [];
+const INIT_CASHBOOK        = [];
+const INIT_BANK            = [];
+const INIT_EXPENSES        = [];
+const INIT_DEBTS           = [];
+const INIT_STOCK           = [];
+const INIT_FUND_REQUESTS   = [];
+const INIT_MACHINES        = [];
+const INIT_ASSISTANTS      = [];
+const INIT_TASKS           = [];
+const INIT_MACH_TX         = [];
+const INIT_DRIVER_LOGS     = [];
+const INIT_LEAVES          = [];
+const INIT_SEASONS         = [];
+const INIT_STATION_SEASONS = [];
+const INIT_WAREHOUSE_STOCK = [];
+const INIT_PROJECTS        = [];
+const INIT_PROJECT_COSTS   = [];
+const INIT_MILESTONES      = [];
+const INIT_CONTRACTORS     = [];
+const INIT_USERS           = [];
+const INIT_PENDING = [];
+const INIT_SYSTEM = {
+  logoUrl: null,
+  heroImageUrl: "",
+  companyName: "Bender Exports Ltd.",
+  tagline: "Integrated Financial Management \xB7 Kigali, Rwanda",
+  labels: { coffee: "Bender Coffee", machinery: "Bender Machine", construction: "Bender Construction" },
+  businessModels: [
+    { id: "coffee", label: "Bender Coffee", icon: "\u2615", active: true },
+    { id: "machinery", label: "Bender Machine", icon: "\u{1F3D7}\uFE0F", active: true },
+    { id: "construction", label: "Bender Construction", icon: "\u{1F3DB}\uFE0F", active: true }
+  ]
+};
+const ROLES = {
+  sudo: { label: "Super Admin", color: C.purple, light: C.purpleLight, priority: 10 },
+  md: { label: "Managing Director", color: C.gold, light: C.goldLight, priority: 9 },
+  admin: { label: "Administrator", color: C.info, light: "#68A8E8", priority: 8 },
+  hq_finance: { label: "HQ Finance Officer", color: C.warning, light: C.warningLight, priority: 7 },
+  hq_accountant: { label: "HQ Accountant", color: "#5A8A6A", light: "#7ABAA0", priority: 7 },
+  hq_ops: { label: "HQ Ops Manager", color: "#7A5AC8", light: "#9A7AE8", priority: 6 },
+  hq_it:  { label: "HQ IT Officer",  color: "#3A8FC8", light: "#5AAFE8", priority: 6 },
+  station_manager: { label: "Station Manager", color: C.coffee, light: C.coffeeLight, priority: 5 },
+  cashier: { label: "Cashier", color: C.success, light: "#78D890", priority: 4 },
+  clerk: { label: "Clerk", color: "#7AAABB", light: "#9ACADB", priority: 3 },
+  driver: { label: "Driver", color: C.machinery, light: C.machineryLight, priority: 2 }
+};
+const HQ_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"];
+const WAREHOUSE_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"];
+const STATION_ROLES = ["station_manager", "cashier", "clerk"];
+const hasAccess = (u, sec) => {
+  const map = {
+    coffee: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager", "cashier", "clerk"],
+    machinery: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "driver"],
+    construction: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"],
+    warehouse: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
+    users: ["sudo", "md"],
+    import: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
+    system: ["sudo"],
+    reports: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager", "cashier"],
+    driver_log: ["driver"],
+    fund_requests: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
+    field_requisition: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
+    chat: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it", "station_manager", "cashier", "clerk", "driver"],
+    loans:     ["sudo", "md"],
+    contracts: ["sudo", "md"]
+  };
+  return (map[sec] || []).includes(u.role);
+};
+const canApproveFunds = (r) => ["sudo", "md"].includes(r);
+const canVerifyFunds = (r) => ["sudo", "md", "hq_ops"].includes(r);
+const canManageCash = (r) => ["sudo", "md", "hq_finance", "cashier"].includes(r);
+const canEnterCherry = (r) => ["clerk", "sudo", "md", "admin"].includes(r);
+const canPayGNR = (r) => ["cashier", "sudo", "md", "admin"].includes(r);
+const canRecordExpense = (r) => ["cashier", "sudo", "md", "admin", "hq_finance"].includes(r);
+const canApproveExpense = (r) => ["station_manager", "sudo", "md", "admin", "hq_finance"].includes(r);
+const canRegisterFarmer = (r) => ["station_manager", "sudo", "md", "admin"].includes(r);
+const canRequestFunds = (r) => ["station_manager", "sudo", "md", "admin"].includes(r);
+const canManageSeason = (r) => ["md", "sudo"].includes(r);
+const canSeeSeasonReports = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"].includes(r);
+const canSendToWarehouse = (r) => ["station_manager", "sudo", "md", "admin"].includes(r);
+const canConfirmWarehouse = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"].includes(r);
+const canManageConstruction = (r) => ["sudo", "md", "admin", "hq_finance", "hq_ops"].includes(r);
+const canSeeAllStations = (r) => HQ_ROLES.includes(r) || ["admin"].includes(r);
+const canManageChats    = (r) => ["sudo", "md", "admin"].includes(r);
+const canSeeMDDashboard = (r) => ["sudo", "md"].includes(r);
+const canSubmitFieldReq = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"].includes(r);
+const canApproveFieldReq = (r) => ["sudo", "hq_finance", "admin"].includes(r);
+const canReleaseFieldCheque = (r) => ["sudo", "md"].includes(r);
+const fmtRWF = (n) => `${Number(n || 0).toLocaleString()} RWF`;
+const fmtKg = (n) => `${Number(n || 0).toLocaleString()} kg`;
+const today = () => (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+const BtnS = (color, ghost = false, outline = false) => ({
+  display: "inline-flex", alignItems: "center", gap: 6,
+  border: "none", borderRadius: 10, cursor: "pointer",
+  fontWeight: 600, fontFamily: "'Inter',sans-serif",
+  fontSize: 13, transition: "all .18s ease",
+  ...(ghost
+    ? { background: `${color}15`, color, border: `1px solid ${color}28` }
+    : outline
+    ? { background: "transparent", color, border: `1px solid ${color}40` }
+    : { background: `linear-gradient(135deg,${color},${color}CC)`, color: "#0A0F0A", boxShadow: `0 4px 14px ${color}30` })
+});
+const inpS = () => ({
+  width: "100%", padding: "7px 10px", background: C.bgDeep,
+  border: `1.5px solid ${C.border}`, borderRadius: 8,
+  color: C.text, fontSize: 12, fontFamily: "'Inter',sans-serif",
+  outline: "none",
+});
+const selS = () => ({
   width: "100%", padding: "10px 13px",
   background: "linear-gradient(145deg,#0D1210,#111714)",
   border: `1.5px solid ${C.border}`, borderRadius: 10,
