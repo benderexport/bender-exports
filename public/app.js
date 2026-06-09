@@ -1,4 +1,4 @@
-const C = {
+coconst C = {
   // Base
   bg:       "#0A0F0A",
   bgCard:   "#111714",
@@ -220,7 +220,7 @@ const inpS = () => ({
   color: C.text, fontSize: 12, fontFamily: "'Inter',sans-serif",
   outline: "none",
 });
-nst C = {
+const C = {
   // Base
   bg:       "#0A0F0A",
   bgCard:   "#111714",
