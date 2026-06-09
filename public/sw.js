@@ -1,140 +1,109 @@
-// ── Bender Exports — Service Worker ─────────────────────────────────
-// INCREMENT this version string on every deploy to force cache refresh
-const CACHE_VERSION = 'bender-v8';
-const CACHE_NAME = `bender-cache-${CACHE_VERSION}`;
+// Bender Exports — Service Worker v2.1.0
+// Cache version bumped — forces all clients to discard old cached app.js
+const CACHE = "bender-v3";
+const PRECACHE = ["/", "/index.html", "/manifest.json", "/icons/icon-192.svg"];
 
-// Files to cache on install
-const PRECACHE = [
-  '/',
-  '/index.html',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
-];
+let authToken = null;
 
-// ── Install: cache app shell ─────────────────────────────────────────
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
-  );
-  // Activate immediately — don't wait for old tabs to close
-  self.skipWaiting();
-});
-
-// ── Activate: delete ALL old caches ─────────────────────────────────
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== CACHE_NAME)
-          .map((k) => {
-            console.log('[SW] Deleting old cache:', k);
-            return caches.delete(k);
-          })
-      )
-    ).then(() => self.clients.claim())   // take control of all open tabs
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(PRECACHE))
+      .then(() => self.skipWaiting())
   );
 });
 
-// ── Fetch: network-first for HTML/JS, cache-first for assets ─────────
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
 
-  // Skip non-GET and cross-origin requests (Supabase, CDN, etc.)
-  if (request.method !== 'GET' || url.origin !== location.origin) return;
+self.addEventListener("fetch", e => {
+  const url = new URL(e.request.url);
 
-  // Always fetch HTML and JS fresh from network (never serve stale app code)
-  if (
-    request.headers.get('accept')?.includes('text/html') ||
-    url.pathname.endsWith('.js') ||
-    url.pathname === '/' ||
-    url.pathname === '/index.html' ||
-    url.pathname === '/app.js'
-  ) {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          // Update cache with fresh response
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
-          return res;
+  // Never cache API calls
+  if (url.pathname.startsWith("/api/")) {
+    e.respondWith(
+      fetch(e.request).catch(() =>
+        new Response(JSON.stringify({ error: "Offline" }), {
+          status: 503, headers: { "Content-Type": "application/json" }
         })
-        .catch(() => caches.match(request)) // fallback to cache if offline
+      )
     );
     return;
   }
 
-  // Cache-first for everything else (icons, manifest)
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+  // Never cache app.js — always fetch fresh from network
+  if (url.pathname === "/app.js") {
+    e.respondWith(
+      fetch(e.request, { cache: "no-store" }).catch(() =>
+        caches.match("/app.js")
+      )
+    );
+    return;
+  }
+
+  // Cache-first for everything else, fallback to index.html for SPA routes
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(res => {
+        if (res.ok && e.request.method === "GET") {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match("/index.html"));
+    })
   );
 });
 
-// ── Offline queue (IndexedDB) ────────────────────────────────────────
-let _token = null;
-
-const openQueueDB = () =>
-  new Promise((res, rej) => {
-    const req = indexedDB.open('bender_queue', 1);
-    req.onupgradeneeded = (e) =>
-      e.target.result.createObjectStore('ops', {
-        keyPath: 'id',
-        autoIncrement: true,
-      });
-    req.onsuccess = (e) => res(e.target.result);
-    req.onerror = (e) => rej(e.target.error);
-  });
-
-const flushQueue = async () => {
-  if (!_token) return;
-  try {
-    const db = await openQueueDB();
-    const tx = db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
-    const all = await new Promise((res, rej) => {
-      const req = store.getAll();
-      req.onsuccess = () => res(req.result);
-      req.onerror = () => rej(req.error);
-    });
-    if (!all.length) return;
-
-    const resp = await fetch('/api/sync', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${_token}`,
-      },
-      body: JSON.stringify({ operations: all }),
-    });
-
-    if (resp.ok) {
-      // Clear flushed ops
-      await new Promise((res, rej) => {
-        const delTx = db.transaction('ops', 'readwrite');
-        delTx.objectStore('ops').clear();
-        delTx.oncomplete = res;
-        delTx.onerror = rej;
-      });
-      self.clients.matchAll().then((clients) =>
-        clients.forEach((c) =>
-          c.postMessage({ type: 'QUEUE_FLUSHED', flushed: all.length })
-        )
-      );
-      console.log('[SW] Flushed', all.length, 'queued operations');
-    }
-  } catch (e) {
-    console.warn('[SW] Queue flush failed:', e);
-  }
-};
-
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SET_TOKEN') {
-    _token = event.data.token;
-  }
-  if (event.data?.type === 'FLUSH_QUEUE') {
-    flushQueue();
-  }
+self.addEventListener("message", e => {
+  if (e.data?.type === "SET_TOKEN") authToken = e.data.token;
+  if (e.data?.type === "FLUSH_QUEUE") flushQueue();
 });
+
+async function flushQueue() {
+  if (!authToken) return;
+  try {
+    const db = await openDB();
+    const ops = await getAll(db);
+    if (!ops.length) return;
+    const res = await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
+      body: JSON.stringify({ operations: ops })
+    });
+    if (res.ok) {
+      await clearAll(db);
+      const clients = await self.clients.matchAll();
+      clients.forEach(c => c.postMessage({ type: "QUEUE_FLUSHED", flushed: ops.length }));
+    }
+  } catch(err) { console.warn("[SW] Queue flush failed:", err); }
+}
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open("bender-queue", 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore("ops", { keyPath: "id" });
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+function getAll(db) {
+  return new Promise((res, rej) => {
+    const req = db.transaction("ops","readonly").objectStore("ops").getAll();
+    req.onsuccess = e => res(e.target.result||[]);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+function clearAll(db) {
+  return new Promise((res, rej) => {
+    const req = db.transaction("ops","readwrite").objectStore("ops").clear();
+    req.onsuccess = () => res();
+    req.onerror   = e => rej(e.target.error);
+  });
+}
