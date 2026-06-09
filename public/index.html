@@ -9,6 +9,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Bender"/>
   <meta name="description" content="Bender Exports Ltd. — Integrated Operations System"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <link rel="manifest" href="/manifest.json"/>
   <link rel="icon" href="/icons/icon-192.svg"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.svg"/>
@@ -51,7 +54,7 @@
   <!-- React + Recharts from CDN (cached by SW after first load) -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Recharts: load from CDN, no document.write fallback (blocked by browsers) -->
+  <!-- Recharts: primary CDN — document.write fallback removed (blocked by modern browsers) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.4/Recharts.js" crossorigin></script>
 
   <!-- Babel Standalone — transforms JSX to JS in the browser -->
