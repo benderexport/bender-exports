@@ -106,10 +106,21 @@ async function auth(req, res, next) {
     }).then(r => r.json());
     if (!sbUser?.id) return res.status(401).json({ error: "Invalid or expired token" });
     // Attach Supabase auth user + our app metadata stored in user_metadata
+    // Also fetch profile for name (used in chat messages etc.)
+    let profileName = sbUser.email?.split("@")[0] || "";
+    try {
+      const prows = await sbFetch(`/profiles?id=eq.${sbUser.id}&select=name,role`);
+      if (prows?.[0]) {
+        profileName = prows[0].name || profileName;
+        sbUser.user_metadata = sbUser.user_metadata || {};
+        sbUser.user_metadata.role = prows[0].role || sbUser.user_metadata?.role;
+      }
+    } catch {}
     req.user = {
-      id:   sbUser.id,
-      role: sbUser.user_metadata?.role || "clerk",
+      id:    sbUser.id,
+      role:  sbUser.user_metadata?.role || "clerk",
       email: sbUser.email,
+      name:  profileName,
     };
     next();
   } catch {
@@ -331,6 +342,7 @@ const TABLES = [
   "bank_transactions","expenses","debts","stock","fund_requests",
   "warehouse_stock","projects","project_costs","milestones","contractors",
   "machines","assistants","tasks","mach_tx","driver_logs","leaves",
+  "chat_rooms","chat_messages","contracts","loans","field_requests",
 ];
 
 // ── Case conversion helpers ───────────────────────────────────────────
@@ -597,93 +609,66 @@ app.post("/api/seed-profiles", auth, requireRoles("sudo"), async (req, res) => {
 
 
 // ── Chat Rooms & Messages ─────────────────────────────────────────────
-// Rooms are stored in the "chat_rooms" table, messages in "chat_messages".
-// Auto-generated rooms (CWS stations, HQ General) are built client-side;
-// only custom rooms created by md/admin are persisted here.
-
-// GET /api/chat/rooms — list custom rooms the user is a member of
 app.get("/api/chat/rooms", auth, async (req, res) => {
   try {
-    const r = await sbFetch("chat_rooms?select=*&order=created_at.asc");
-    if (!r.ok) return res.json([]);
-    const rows = await r.json();
-    // Only return rooms where the user is a member (or user is sudo/md/admin)
+    const rows = await sbFetch("chat_rooms?select=*&order=created_at.asc");
     const isAdmin = ["sudo","md","admin"].includes(req.user.role);
-    const filtered = rows.filter(room => {
-      const members = room.member_ids || room.memberIds || [];
-      return isAdmin || members.includes(req.user.id);
-    });
-    res.json(filtered);
-  } catch(e) { res.json([]); }
+    res.json((rows||[]).filter(r => isAdmin || (r.member_ids||[]).includes(req.user.id)));
+  } catch { res.json([]); }
 });
 
-// POST /api/chat/rooms — create a new custom room
 app.post("/api/chat/rooms", auth, async (req, res) => {
   try {
     const { id, name, icon, type, color, memberIds, member_ids, createdBy } = req.body;
-    const payload = {
-      id: id || require("crypto").randomUUID(),
-      name, icon: icon || "💬", type: type || "custom", color: color || "#9A5EE0",
-      member_ids: memberIds || member_ids || [],
-      created_by: createdBy || req.user.id,
-      created_at: new Date().toISOString(),
-    };
-    const r = await sbFetch("chat_rooms", { method: "POST", body: JSON.stringify(payload) });
-    res.status(r.ok ? 201 : 400).json(r.ok ? payload : { error: "Failed to create room" });
+    const payload = { id: id || require("crypto").randomUUID(), name, icon: icon||"💬",
+      type: type||"custom", color: color||"#9A5EE0",
+      member_ids: memberIds||member_ids||[], created_by: createdBy||req.user.id,
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    await sbFetch("chat_rooms", { method:"POST", prefer:"resolution=merge-duplicates,return=minimal", body:JSON.stringify(payload) });
+    res.status(201).json(payload);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// PUT /api/chat/rooms/:id — update room members
 app.put("/api/chat/rooms/:id", auth, async (req, res) => {
   try {
-    const { memberIds, member_ids } = req.body;
-    const payload = { member_ids: memberIds || member_ids };
-    const r = await sbFetch(`chat_rooms?id=eq.${req.params.id}`, { method: "PATCH", body: JSON.stringify(payload) });
-    res.status(r.ok ? 200 : 400).json({ ok: r.ok });
+    const { memberIds, member_ids, name } = req.body;
+    const payload = { ...(name && {name}), ...(memberIds||member_ids ? {member_ids: memberIds||member_ids} : {}), updated_at: new Date().toISOString() };
+    await sbFetch(`chat_rooms?id=eq.${req.params.id}`, { method:"PATCH", body:JSON.stringify(payload) });
+    res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// DELETE /api/chat/rooms/:id — delete a room and its messages
 app.delete("/api/chat/rooms/:id", auth, requireRoles("sudo","md","admin"), async (req, res) => {
   try {
-    await sbFetch(`chat_messages?room_id=eq.${req.params.id}`, { method: "DELETE" });
-    const r = await sbFetch(`chat_rooms?id=eq.${req.params.id}`, { method: "DELETE" });
-    res.json({ ok: r.ok });
+    await sbFetch(`chat_messages?room_id=eq.${req.params.id}`, { method:"DELETE" });
+    await sbFetch(`chat_rooms?id=eq.${req.params.id}`, { method:"DELETE" });
+    res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/chat/rooms/:id/messages — last N messages
 app.get("/api/chat/rooms/:id/messages", auth, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit || "100"), 200);
-    const r = await sbFetch(`chat_messages?room_id=eq.${req.params.id}&order=created_at.asc&limit=${limit}`);
-    if (!r.ok) return res.json([]);
-    const rows = await r.json();
-    res.json(rows.map(m => ({
+    const limit = Math.min(parseInt(req.query.limit||"100"), 200);
+    const rows = await sbFetch(`chat_messages?room_id=eq.${req.params.id}&order=created_at.asc&limit=${limit}`);
+    res.json((rows||[]).map(m => ({
       id: m.id, roomId: m.room_id, senderId: m.sender_id,
       senderName: m.sender_name, senderRole: m.sender_role,
       senderAvatar: m.sender_avatar, text: m.text,
       ts: new Date(m.created_at).getTime(), createdAt: m.created_at,
     })));
-  } catch(e) { res.json([]); }
+  } catch { res.json([]); }
 });
 
-// POST /api/chat/rooms/:id/messages — save a message
 app.post("/api/chat/rooms/:id/messages", auth, async (req, res) => {
   try {
     const { id, senderId, senderName, senderRole, senderAvatar, text, ts } = req.body;
-    const payload = {
-      id: id || require("crypto").randomUUID(),
-      room_id: req.params.id,
-      sender_id: senderId || req.user.id,
-      sender_name: senderName || req.user.name,
-      sender_role: senderRole || req.user.role,
-      sender_avatar: senderAvatar || "",
-      text,
-      created_at: ts ? new Date(ts).toISOString() : new Date().toISOString(),
-    };
-    const r = await sbFetch("chat_messages", { method: "POST", body: JSON.stringify(payload) });
-    res.status(r.ok ? 201 : 400).json({ ok: r.ok });
+    const payload = { id: id||require("crypto").randomUUID(), room_id: req.params.id,
+      sender_id: senderId||req.user.id, sender_name: senderName||"",
+      sender_role: senderRole||req.user.role, sender_avatar: senderAvatar||"",
+      text, created_at: ts ? new Date(ts).toISOString() : new Date().toISOString(),
+      updated_at: new Date().toISOString() };
+    await sbFetch("chat_messages", { method:"POST", prefer:"resolution=merge-duplicates,return=minimal", body:JSON.stringify(payload) });
+    res.status(201).json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -696,6 +681,8 @@ app.use(express.static(PUBLIC_DIR, {
     if (filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
       res.setHeader("Cache-Control", "no-cache");
       if (filePath.endsWith("sw.js")) res.setHeader("Service-Worker-Allowed", "/");
+    } else if (filePath.endsWith("app.js")) {
+      res.setHeader("Cache-Control", "no-cache");  // always re-fetch app.js
     } else if (filePath.endsWith(".js")) {
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     }
