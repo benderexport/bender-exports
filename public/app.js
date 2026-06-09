@@ -214,7 +214,13 @@ const BtnS = (color, ghost = false, outline = false) => ({
     ? { background: "transparent", color, border: `1px solid ${color}40` }
     : { background: `linear-gradient(135deg,${color},${color}CC)`, color: "#0A0F0A", boxShadow: `0 4px 14px ${color}30` })
 });
-const selS = () => ({
+const inpS = () => ({
+  width: "100%", padding: "7px 10px", background: C.bgDeep,
+  border: `1.5px solid ${C.border}`, borderRadius: 8,
+  color: C.text, fontSize: 12, fontFamily: "'Inter',sans-serif",
+  outline: "none",
+});
+const selS = () => (
   width: "100%", padding: "10px 13px",
   background: "linear-gradient(145deg,#0D1210,#111714)",
   border: `1.5px solid ${C.border}`, borderRadius: 10,
@@ -2114,7 +2120,7 @@ function SeasonsPage({ onBack }) {
   const { currentUser: u, seasons, setSeasons, stationSeasons, setStationSeasons, cwsList, addNote } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [showEnrollForm, setShowEnrollForm] = useState(null);
-  const [form, setForm] = useState({ name: "", startDate: "", endDate: "", rateStandard: "155", rateFlotant: "80", notes: "" });
+  const [form, setForm] = useState({ name: "", startDate: "", endDate: "", rateStandard: "155", rateFlotant: "80", notes: "", stationTargets: {}, outturnTargets: { A1: "", A2: "", A3: "", triage: "" } });
   const [enrollForm, setEnrollForm] = useState({ cwsId: "", startDate: today() });
   const activeSeason = seasons.find((s) => s.status === "active");
   const createSeason = () => {
@@ -2123,9 +2129,9 @@ function SeasonsPage({ onBack }) {
       addNote("Close the current active season before opening a new one", "warning");
       return;
     }
-    setSeasons((p) => [{ id: uid(), name: form.name, startDate: form.startDate, endDate: form.endDate || null, rateStandard: +form.rateStandard, rateFlotant: +form.rateFlotant, status: "active", createdBy: u.id, createdAt: today(), closedAt: null, notes: form.notes }, ...p]);
+    setSeasons((p) => [{ id: uid(), name: form.name, startDate: form.startDate, endDate: form.endDate || null, rateStandard: +form.rateStandard, rateFlotant: +form.rateFlotant, status: "active", createdBy: u.id, createdAt: today(), closedAt: null, notes: form.notes, stationTargets: form.stationTargets || {}, outturnTargets: form.outturnTargets || {} }, ...p]);
     setShowForm(false);
-    setForm({ name: "", startDate: "", endDate: "", rateStandard: "155", rateFlotant: "80", notes: "" });
+    setForm({ name: "", startDate: "", endDate: "", rateStandard: "155", rateFlotant: "80", notes: "", stationTargets: {}, outturnTargets: { A1: "", A2: "", A3: "", triage: "" } });
     addNote("New season created and opened", "success");
   };
   const closeSeason = (id) => {
@@ -2200,6 +2206,41 @@ function SeasonsPage({ onBack }) {
             <FI label="Standard Rate (RWF/kg)" type="number" value={form.rateStandard} onChange={(v) => setForm((p) => ({ ...p, rateStandard: v }))} placeholder="155" />
             <FI label="Flotant Rate (RWF/kg)" type="number" value={form.rateFlotant} onChange={(v) => setForm((p) => ({ ...p, rateFlotant: v }))} placeholder="80" />
             <div style={{ gridColumn: "1/-1" }}><FI label="Notes" value={form.notes} onChange={(v) => setForm((p) => ({ ...p, notes: v }))} placeholder="Optional notes..." /></div>
+            {cwsList.length > 0 && <div style={{ gridColumn: "1/-1" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>Target Parchment (kg) per Station</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 8 }}>
+                {cwsList.map(cws => <div key={cws.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 11, color: C.text, minWidth: 90, flexShrink: 0 }}>{cws.name}</div>
+                  <input type="number" min="0" placeholder="e.g. 50000"
+                    value={form.stationTargets?.[cws.id] || ""}
+                    onChange={e => setForm(p => ({ ...p, stationTargets: { ...p.stationTargets, [cws.id]: e.target.value } }))}
+                    style={{ flex: 1, padding: "6px 10px", background: C.bgDeep, border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 12, outline: "none" }} />
+                  <span style={{ fontSize: 10, color: C.textDim }}>kg</span>
+                </div>)}
+              </div>
+            </div>}
+            <div style={{ gridColumn: "1/-1" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>Expected Outturn Targets (%)</div>
+              <div style={{ background: C.bgDeep, borderRadius: 10, padding: "12px 14px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
+                {[["A1","Grade A1 (Top)",C.success],["A2","Grade A2",C.gold],["A3","Grade A3",C.warning],["triage","Triage / Defects",C.danger]].map(([key,label,col]) => (
+                  <div key={key}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: col, marginBottom: 4 }}>{label}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input type="number" min="0" max="100" placeholder="0"
+                        value={form.outturnTargets?.[key] || ""}
+                        onChange={e => setForm(p => ({ ...p, outturnTargets: { ...p.outturnTargets, [key]: e.target.value } }))}
+                        style={{ flex: 1, padding: "6px 10px", background: C.surface, border: `1.5px solid ${col}40`, borderRadius: 8, color: col, fontSize: 13, fontWeight: 700, outline: "none", textAlign: "center" }} />
+                      <span style={{ fontSize: 11, color: C.textDim }}>%</span>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ gridColumn: "1/-1", fontSize: 10, color: C.textDim }}>
+                  Total: {["A1","A2","A3","triage"].reduce((s,k) => s + (+form.outturnTargets?.[k]||0), 0)}% 
+                  {["A1","A2","A3","triage"].reduce((s,k) => s + (+form.outturnTargets?.[k]||0), 0) !== 100 && 
+                    <span style={{ color: C.warning }}> (should total 100%)</span>}
+                </div>
+              </div>
+            </div>
           </div>
           <MF onCancel={() => setShowForm(false)} onSave={createSeason} label="Open Season" color={C.success} />
         </Modal>}
@@ -3065,7 +3106,7 @@ function AlertsPanel() {
 function WarehousePage() {
   const { currentUser: u, warehouseStock, setWarehouseStock,
           warehouseMovements, setWarehouseMovements,
-          cwsList, machines, users, addNote } = useApp();
+          cherry, cwsList, machines, users, addNote } = useApp();
 
   const [tab,       setTab]       = useState("overview");
   const [showForm,  setShowForm]  = useState(false);
@@ -3075,7 +3116,7 @@ function WarehousePage() {
   // Market price handled by shared CoffeeMarketWidget + useCoffeeMarket hook
 
   // ── Blank forms ────────────────────────────────────────────────
-  const blankShip = { fromCwsId:"", grade:"Parchment", tonnes:"", lotNumber:"", gnrRefs:"", transportDetails:"", notes:"" };
+  const blankShip = { fromCwsId:"", grade:"A1 Full Washed", numSacs:"", kgPerSac:"60", totalKg:"", lotNumber:"", gnrRefs:"", truckPlate:"", driverName:"", sealNumber:"", destination:"warehouse", outA1:"", outA2:"", outA3:"", outTriage:"", moisture:"", screenSize:"", notes:"", cherryReceivedKg:"" };
   const [form, setForm] = useState(blankShip);
 
   const blankMv = { direction:"in", kg:"", grade:"Parchment", location:"", lotNumber:"", gnrRefs:"",
@@ -3106,15 +3147,135 @@ function WarehousePage() {
   // ── Save legacy shipment ───────────────────────────────────────
   const sendShipment = () => {
     if (!form.fromCwsId || !form.tonnes) return addNote("Station and tonnes required","warning");
-    setWarehouseStock(p => [...p, {
-      id: uid(), fromCwsId: form.fromCwsId, sentBy: u.id,
+    const dnNo = `DN-${Date.now().toString().slice(-6)}`;
+    const cws  = cwsList.find(c => c.id === form.fromCwsId);
+    const shipId = uid();
+    const shipRec = {
+      id: shipId, fromCwsId: form.fromCwsId, sentBy: u.id,
       date: today(), grade: form.grade, tonnes: parseFloat(form.tonnes),
+      bags: form.bags ? +form.bags : null,
       lotNumber: form.lotNumber, gnrRefs: form.gnrRefs,
-      transportDetails: form.transportDetails, status:"pending",
+      truckPlate: form.truckPlate, driverName: form.driverName,
+      sealNumber: form.sealNumber, destination: form.destination || "warehouse",
+      outA1: form.outA1, outA2: form.outA2, outA3: form.outA3, outTriage: form.outTriage,
+      moisture: form.moisture, screenSize: form.screenSize,
+      deliveryNoteNo: dnNo, status:"pending",
       confirmedBy:null, confirmedAt:null, notes:form.notes,
-    }]);
+    };
+    setWarehouseStock(p => [...p, shipRec]);
     setShowForm(false); setForm(blankShip);
-    addNote("Shipment sent to warehouse","warehouse");
+    addNote(`Shipment saved — Delivery Note ${dnNo} generated`, "warehouse");
+    // ── Print delivery note ──────────────────────────────────────
+    const w = window.open("","_blank","width=820,height=960");
+    const dest = (form.destination||"Warehouse").replace(/_/g," ");
+    const rend = rendement ? `${rendement}%` : "—";
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Delivery Note ${dnNo}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#111;max-width:780px;margin:0 auto;font-size:13px}
+      .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #C8A84B}
+      h1{font-size:20px;font-weight:900;color:#1a1a1a}
+      .cws-name{font-size:15px;font-weight:700;color:#5a3e10;margin-top:2px}
+      .sub{color:#777;font-size:12px;margin-top:3px}
+      .dn-badge{background:#5a3e10;color:#C8A84B;font-size:14px;font-weight:800;padding:8px 18px;border-radius:8px;letter-spacing:0.5px}
+      .section{font-size:10px;font-weight:800;color:#5a3e10;text-transform:uppercase;letter-spacing:1.2px;margin:16px 0 8px;padding-bottom:4px;border-bottom:2px solid #C8A84B}
+      table{width:100%;border-collapse:collapse;margin-bottom:12px}
+      td,th{padding:7px 10px;border:1px solid #ddd;vertical-align:top}
+      thead th{background:#f5efe0;font-weight:800;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+      .total-row td{background:#f5efe0;font-weight:800;font-size:14px}
+      .info-th{background:#fafafa;font-weight:700;text-align:left;width:170px;color:#444;font-size:12px}
+      .rend-box{background:#e8f5e9;border:2px solid #4caf50;border-radius:10px;padding:14px 20px;display:flex;gap:32px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+      .r-val{font-size:28px;font-weight:900;color:#2e7d32}
+      .r-lbl{font-size:10px;color:#555;text-transform:uppercase;font-weight:700;margin-top:2px}
+      .outturn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+      .g-box{border:1px solid #eee;border-radius:8px;padding:10px;text-align:center}
+      .g-pct{font-size:20px;font-weight:800}
+      .g-lbl{font-size:10px;color:#777;margin-top:2px}
+      .sig-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;margin-top:36px}
+      .sig-box{padding-top:8px}
+      .sig-line{border-top:1.5px solid #333;margin-bottom:6px}
+      .sig-title{font-size:10px;font-weight:800;color:#555;text-transform:uppercase}
+      @media print{body{padding:14px}button{display:none}}
+    </style></head><body>
+    <div class="hdr">
+      <div>
+        <h1>BENDER EXPORTS LTD</h1>
+        <div class="cws-name">${cws?.name || form.fromCwsId} — CWS</div>
+        <div class="sub">Report of Delivery Notes</div>
+      </div>
+      <div style="text-align:right">
+        <div class="dn-badge">DELIVERY NOTE #${dnNo}</div>
+        <div style="font-size:12px;color:#777;margin-top:6px">Date: ${today()}</div>
+        <div style="font-size:12px;color:#777">Destination: <strong>${dest}</strong></div>
+      </div>
+    </div>
+
+    <div class="section">Delivery Details</div>
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Grade</th><th>No. of Sacks Delivered</th><th>Qty / Sac (kg)</th><th>Total Quantity (kg)</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td>${today()}</td>
+          <td><strong>${form.grade}</strong></td>
+          <td style="text-align:center"><strong>${form.numSacs}</strong></td>
+          <td style="text-align:center">${form.kgPerSac||60}</td>
+          <td style="text-align:right;font-weight:700">${(+totalKg).toLocaleString()}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="2" style="text-align:right">TOTAL Parchment Delivered</td>
+          <td style="text-align:center">${form.numSacs}</td>
+          <td></td>
+          <td style="text-align:right">${(+totalKg).toLocaleString()} kg</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="section">Transport Details</div>
+    <table>
+      <tr><td class="info-th">Lot Number</td><td>${form.lotNumber||"—"}</td><td class="info-th">GNR References</td><td>${form.gnrRefs||"—"}</td></tr>
+      <tr><td class="info-th">Truck Plate</td><td>${form.truckPlate||"—"}</td><td class="info-th">Driver</td><td>${form.driverName||"—"}</td></tr>
+      <tr><td class="info-th">Seal Number</td><td>${form.sealNumber||"—"}</td><td class="info-th">Prepared By</td><td>${u.name} (${u.role})</td></tr>
+      ${form.notes?`<tr><td class="info-th">Notes</td><td colspan="3">${form.notes}</td></tr>`:""}
+    </table>
+
+    ${rendement ? `
+    <div class="section">Outturn / Rendement</div>
+    <div class="rend-box">
+      <div><div class="r-val">${rendement}%</div><div class="r-lbl">Rendement (Outturn)</div></div>
+      <div><div style="font-size:16px;font-weight:700">${(+totalKg).toLocaleString()} kg</div><div class="r-lbl">Parchment Delivered</div></div>
+      <div><div style="font-size:16px;font-weight:700">${(+form.cherryReceivedKg).toLocaleString()} kg</div><div class="r-lbl">Cherry Received</div></div>
+    </div>` : ""}
+
+    ${(form.outA1||form.outA2||form.outTriage||form.outA3) ? `
+    <div class="section">Grade Outturn</div>
+    <div class="outturn-grid">
+      <div class="g-box"><div class="g-pct" style="color:#2e7d32">${form.outA1||0}%</div><div class="g-lbl">A1 Full Washed</div></div>
+      <div class="g-box"><div class="g-pct" style="color:#C8A84B">${form.outA2||0}%</div><div class="g-lbl">A2 Full Washed</div></div>
+      <div class="g-box"><div class="g-pct" style="color:#e65100">${form.outTriage||0}%</div><div class="g-lbl">A2 Trie</div></div>
+      <div class="g-box"><div class="g-pct" style="color:#c62828">${form.outA3||0}%</div><div class="g-lbl">A3</div></div>
+    </div>
+    ${form.moisture?`<table><tr><td class="info-th">Moisture</td><td>${form.moisture}%</td><td class="info-th">Screen Size</td><td>${form.screenSize||"—"}</td></tr></table>`:""}
+    ` : ""}
+
+    <div class="section">Acknowledgement &amp; Signatures</div>
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Prepared By (Accountant)</div><div style="margin-top:6px;font-size:12px">${u.name}</div></div>
+      <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Received By</div><div style="margin-top:6px;font-size:12px;color:#bbb">Name &amp; Stamp</div></div>
+      <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Authorized By</div><div style="margin-top:6px;font-size:12px;color:#bbb">MD / Warehouse Manager</div></div>
+    </div>
+    <div style="margin-top:28px;padding-top:10px;border-top:1px solid #eee;font-size:10px;color:#aaa;display:flex;justify-content:space-between">
+      <span>Bender Exports IOS · ${new Date().toLocaleString()}</span><span>${dnNo}</span>
+    </div>
+    <div style="margin-top:16px;text-align:center">
+      <button onclick="window.print()" style="padding:10px 28px;background:#C8A84B;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:10px">🖨 Print</button>
+      <button onclick="window.close()" style="padding:10px 20px;background:#eee;color:#333;border:none;border-radius:8px;font-size:13px;cursor:pointer">Close</button>
+    </div>
+    </body></html>`);
+    w.document.close();
   };
 
   // ── Save stock movement ────────────────────────────────────────
@@ -3345,7 +3506,7 @@ function WarehousePage() {
           : <div className="tbl-wrap">
               <table style={{ width:"100%", borderCollapse:"collapse" }}>
                 <thead><tr style={{ background:C.surface }}>
-                  {["Date","Station","Lot #","Grade","Tonnes","Status","Confirmed At"].map(h=><Th key={h}>{h}</Th>)}
+                  {["Date","Station","Lot #","Grade","Tonnes","Status","Confirmed At","DN #"].map(h=><Th key={h}>{h}</Th>)}
                 </tr></thead>
                 <tbody>
                   {warehouseStock.map(w => {
@@ -3360,6 +3521,9 @@ function WarehousePage() {
                       <Td style={{ fontWeight:700, color:C.info }}>{w.tonnes} T</Td>
                       <Td><SB status={w.status} /></Td>
                       <Td style={{ color:C.textDim, fontSize:11 }}>{w.confirmedAt?.split(" ")[0]||"—"}</Td>
+                      <Td>
+                        {w.deliveryNoteNo && <span style={{ fontSize:10, fontWeight:700, color:C.gold }}>{w.deliveryNoteNo}</span>}
+                      </Td>
                     </tr>;
                   })}
                 </tbody>
@@ -3367,8 +3531,168 @@ function WarehousePage() {
             </div>
         }
       </div>
+      {/* Summary strip */}
+      {warehouseStock.length > 0 && <div style={{ marginTop:14, background:C.bgDeep, borderRadius:10, padding:"12px 16px" }}>
+        <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:10 }}>Outturn Summary</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:10 }}>
+          {[["A1",C.success],["A2",C.gold],["A3",C.warning],["Triage",C.danger]].map(([grade,col]) => {
+            const key = grade === "Triage" ? "outTriage" : `out${grade}`;
+            const vals = warehouseStock.map(w => +w[key]||0).filter(v => v > 0);
+            const avg  = vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1) : "—";
+            return <div key={grade} style={{ background:C.gradCard, border:`1px solid ${col}25`, borderRadius:8, padding:"10px 12px", textAlign:"center" }}>
+              <div style={{ fontSize:18, fontWeight:800, color:col }}>{avg}{avg !== "—" ? "%" : ""}</div>
+              <div style={{ fontSize:10, color:C.textDim, marginTop:2 }}>Avg {grade}</div>
+            </div>;
+          })}
+        </div>
+      </div>}
     </div>
   );
+
+  const TabDNReport = () => {
+    const [filterCws, setFilterCws] = useState("all");
+    const ships = filterCws === "all" ? warehouseStock : warehouseStock.filter(w => w.fromCwsId === filterCws);
+
+    // Group by CWS
+    const byCws = cwsList.map(cws => {
+      const rows = warehouseStock.filter(w => w.fromCwsId === cws.id);
+      if (!rows.length) return null;
+
+      // Grade totals
+      const grades = {};
+      rows.forEach(w => {
+        const g = w.grade || "Unknown";
+        if (!grades[g]) grades[g] = { numSacs: 0, totalKg: 0 };
+        grades[g].numSacs += +w.numSacs || 0;
+        grades[g].totalKg += w.tonnes ? +w.tonnes * 1000 : (+w.numSacs||0) * (+w.kgPerSac||60);
+      });
+
+      // Total parchment delivered
+      const totalKg = Object.values(grades).reduce((s,g) => s + g.totalKg, 0);
+      const totalSacs = Object.values(grades).reduce((s,g) => s + g.numSacs, 0);
+
+      // Total cherry received from cherry intake
+      const cherryKg = (cherry||[])
+        .filter(c => c.cwsId === cws.id)
+        .reduce((s,c) => s + (+c.standardKg||0) + (+c.flotantKg||0), 0);
+
+      // Outturn = parchment kg / cherry kg * 100
+      const outturn = cherryKg > 0 ? (totalKg / cherryKg * 100).toFixed(2) : null;
+
+      return { cws, rows, grades, totalKg, totalSacs, cherryKg, outturn };
+    }).filter(Boolean);
+
+    return <div>
+      {/* Filter */}
+      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ fontSize:13, fontWeight:700, color:C.text }}>Delivery Notes Report + Outturn</div>
+        <select value={filterCws} onChange={e=>setFilterCws(e.target.value)} style={{ ...selS(), width:"auto", marginLeft:"auto" }}>
+          <option value="all">All Stations</option>
+          {cwsList.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+
+      {byCws.filter(b => filterCws === "all" || b.cws.id === filterCws).map(({ cws, rows, grades, totalKg, totalSacs, cherryKg, outturn }) => <div key={cws.id} style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:14, padding:"18px 20px", marginBottom:20 }}>
+
+        {/* Station header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, flexWrap:"wrap", gap:10 }}>
+          <div>
+            <div style={{ fontSize:15, fontWeight:800, color:C.gold }}>{cws.name}</div>
+            <div style={{ fontSize:11, color:C.textMuted }}>Report of Delivery Notes</div>
+          </div>
+          {outturn && <div style={{ background:`${C.info}15`, border:`1px solid ${C.info}30`, borderRadius:10, padding:"8px 16px", textAlign:"center" }}>
+            <div style={{ fontSize:20, fontWeight:800, color:C.info }}>{outturn}%</div>
+            <div style={{ fontSize:9, color:C.textDim, textTransform:"uppercase", letterSpacing:"0.6px" }}>Outturn / Rendement</div>
+          </div>}
+        </div>
+
+        {/* Delivery notes table */}
+        <div style={{ overflowX:"auto", marginBottom:16 }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+            <thead><tr style={{ background:C.bgDeep }}>
+              {["Date","DN #","Grade","N° of Sacs Delivered","Qty/Sac (kg)","Total Quantity (kg)","Destination","Status"].map(h=><th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:C.textMuted, fontSize:10, textTransform:"uppercase", letterSpacing:"0.6px", borderBottom:`1px solid ${C.border}`, whiteSpace:"nowrap" }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {rows.map((w,i) => {
+                const kg = w.tonnes ? +w.tonnes*1000 : (+w.numSacs||0)*(+w.kgPerSac||60);
+                return <tr key={w.id} style={{ borderBottom:`1px solid ${C.border}10` }}>
+                  <td style={{ padding:"7px 10px", color:C.textMuted }}>{w.date}</td>
+                  <td style={{ padding:"7px 10px", color:C.gold, fontWeight:700, fontSize:10 }}>{w.deliveryNoteNo||"—"}</td>
+                  <td style={{ padding:"7px 10px", fontWeight:600, color:C.text }}>{w.grade}</td>
+                  <td style={{ padding:"7px 10px", textAlign:"center", fontWeight:700 }}>{w.numSacs||"—"}</td>
+                  <td style={{ padding:"7px 10px", textAlign:"center" }}>{w.kgPerSac||60}</td>
+                  <td style={{ padding:"7px 10px", textAlign:"right", fontWeight:700, color:C.info }}>{kg.toLocaleString()}</td>
+                  <td style={{ padding:"7px 10px", color:C.textMuted, fontSize:11 }}>{(w.destination||"warehouse").replace(/_/g," ")}</td>
+                  <td style={{ padding:"7px 10px" }}><SB status={w.status} /></td>
+                </tr>;
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ background:`${C.gold}10`, borderTop:`2px solid ${C.gold}40` }}>
+                <td colSpan={3} style={{ padding:"9px 10px", fontWeight:800, color:C.text }}>TOTAL Parchment Delivered</td>
+                <td style={{ padding:"9px 10px", textAlign:"center", fontWeight:800, color:C.gold }}>{totalSacs}</td>
+                <td />
+                <td style={{ padding:"9px 10px", textAlign:"right", fontWeight:800, color:C.gold }}>{totalKg.toLocaleString()} kg</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Grade summary (like the Percentages sheet) */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <div>
+            <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>Grade Summary</div>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+              <thead><tr style={{ background:C.bgDeep }}>
+                {["Grade","Sacs","Total Kg","%"].map(h=><th key={h} style={{ padding:"6px 8px", textAlign:"left", fontWeight:700, color:C.textMuted, fontSize:10, borderBottom:`1px solid ${C.border}` }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {Object.entries(grades).map(([grade, g]) => <tr key={grade} style={{ borderBottom:`1px solid ${C.border}10` }}>
+                  <td style={{ padding:"6px 8px", fontWeight:600 }}>{grade}</td>
+                  <td style={{ padding:"6px 8px", textAlign:"center" }}>{g.numSacs}</td>
+                  <td style={{ padding:"6px 8px", textAlign:"right", fontWeight:700, color:C.info }}>{g.totalKg.toLocaleString()}</td>
+                  <td style={{ padding:"6px 8px", textAlign:"right", color:C.gold, fontWeight:700 }}>{totalKg > 0 ? (g.totalKg/totalKg*100).toFixed(1)+"%" : "—"}</td>
+                </tr>)}
+              </tbody>
+              <tfoot>
+                <tr style={{ background:`${C.gold}10` }}>
+                  <td style={{ padding:"6px 8px", fontWeight:800 }}>TOTAL</td>
+                  <td style={{ padding:"6px 8px", textAlign:"center", fontWeight:800 }}>{totalSacs}</td>
+                  <td style={{ padding:"6px 8px", textAlign:"right", fontWeight:800, color:C.gold }}>{totalKg.toLocaleString()}</td>
+                  <td style={{ padding:"6px 8px", textAlign:"right", fontWeight:800 }}>100%</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Outturn card */}
+          <div>
+            <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>Outturn (Rendement)</div>
+            <div style={{ background:C.bgDeep, borderRadius:10, padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color:C.textMuted }}>Total Parchment Delivered</span>
+                <span style={{ fontWeight:700, color:C.info }}>{totalKg.toLocaleString()} kg</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color:C.textMuted }}>Total Cherry Received</span>
+                <span style={{ fontWeight:700, color:C.coffee||C.gold }}>{cherryKg.toLocaleString()} kg</span>
+              </div>
+              <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:13, fontWeight:700, color:C.text }}>Outturn / Rendement</span>
+                <span style={{ fontSize:22, fontWeight:800, color: outturn && +outturn >= 18 ? C.success : outturn ? C.warning : C.textDim }}>
+                  {outturn ? outturn+"%" : "No cherry data"}
+                </span>
+              </div>
+              {outturn && <div style={{ fontSize:10, color:C.textDim }}>Industry benchmark: 18–22% for Arabica parchment</div>}
+            </div>
+          </div>
+        </div>
+      </div>)}
+
+      {byCws.length === 0 && <div style={{ textAlign:"center", padding:"40px 20px", color:C.textDim, fontSize:13 }}>No delivery notes yet. Create a shipment to generate the first delivery note.</div>}
+    </div>;
+  };
 
   // ── RENDER ─────────────────────────────────────────────────────
   return <div>
@@ -3389,7 +3713,7 @@ function WarehousePage() {
 
     {/* Tabs */}
     <div style={{ display:"flex", gap:4, marginBottom:18, borderBottom:`1px solid ${C.border}`, paddingBottom:0 }}>
-      {[["overview","Overview"],["movements","Movement Log"],["shipments","Shipments"]].map(([key,label]) => (
+      {[["overview","Overview"],["movements","Movement Log"],["shipments","Shipments"],["dn_report","DN Report + Outturn"]].map(([key,label]) => (
         <button key={key} onClick={() => setTab(key)} style={{
           padding:"8px 16px", fontSize:12, fontWeight: tab===key?700:400,
           background:"transparent", border:"none", cursor:"pointer",
@@ -3404,19 +3728,75 @@ function WarehousePage() {
     {tab === "overview"  && <TabOverview />}
     {tab === "movements" && <TabMovements />}
     {tab === "shipments" && <TabShipments />}
+    {tab === "dn_report"  && <TabDNReport warehouseStock={warehouseStock} cwsList={cwsList} cherry={cherry} />}
 
     {/* Legacy shipment form */}
-    {showForm && <Modal title="Send Stock to Warehouse" onClose={() => setShowForm(false)} wide>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12 }}>
+    {showForm && <Modal title="New Shipment + Delivery Note" onClose={() => setShowForm(false)} wide>
+      <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:10 }}>📦 Shipment Details</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12, marginBottom:16 }}>
         <div><FL>From Station</FL><select value={form.fromCwsId} onChange={e=>setForm(p=>({...p,fromCwsId:e.target.value}))} style={selS()}><option value="">— Select —</option>{cwsList.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-        <div><FL>Grade</FL><select value={form.grade} onChange={e=>setForm(p=>({...p,grade:e.target.value}))} style={selS()}><option>Parchment</option><option>Green</option></select></div>
-        <FI label="Tonnes" type="number" value={form.tonnes} onChange={v=>setForm(p=>({...p,tonnes:v}))} placeholder="e.g. 2.5" />
-        <FI label="Lot Number" value={form.lotNumber} onChange={v=>setForm(p=>({...p,lotNumber:v}))} placeholder="LOT-XXX-001" />
-        <FI label="GNR References" value={form.gnrRefs} onChange={v=>setForm(p=>({...p,gnrRefs:v}))} placeholder="GNR-MSZ-0001" />
-        <FI label="Transport Details" value={form.transportDetails} onChange={v=>setForm(p=>({...p,transportDetails:v}))} placeholder="Truck plate RAC..." />
+        <div><FL>Destination</FL><select value={form.destination||"warehouse"} onChange={e=>setForm(p=>({...p,destination:e.target.value}))} style={selS()}>
+          <option value="warehouse">Warehouse</option>
+          <option value="export">Export / Port</option>
+          <option value="processing">Processing Plant</option>
+          <option value="other">Other</option>
+        </select></div>
+        <div><FL>Grade</FL><select value={form.grade} onChange={e=>setForm(p=>({...p,grade:e.target.value}))} style={selS()}>
+          <option>A1 Full Washed</option>
+          <option>A2 Full Washed</option>
+          <option>A2 Trie</option>
+          <option>A3</option>
+          <option>Parchment</option>
+        </select></div>
+        <div>
+          <FL>Number of Sacks</FL>
+          <input type="number" min="0" placeholder="e.g. 70"
+            value={form.numSacs||""}
+            onChange={e => setForm(p => { const n=e.target.value; const t=n&&p.kgPerSac?String(+n * +p.kgPerSac):""; return {...p,numSacs:n,totalKg:t}; })}
+            style={{ width:"100%", padding:"9px 12px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none" }} />
+        </div>
+        <div>
+          <FL>Kg per Sack</FL>
+          <input type="number" min="0" placeholder="60"
+            value={form.kgPerSac||""}
+            onChange={e => setForm(p => { const k=e.target.value; const t=k&&p.numSacs?String(+p.numSacs * +k):""; return {...p,kgPerSac:k,totalKg:t}; })}
+            style={{ width:"100%", padding:"9px 12px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none" }} />
+        </div>
+        <div>
+          <FL>Total Quantity (kg)</FL>
+          <input type="number" min="0" placeholder="auto-calculated"
+            value={form.totalKg||""}
+            onChange={e => setForm(p => ({...p,totalKg:e.target.value}))}
+            style={{ width:"100%", padding:"9px 12px", background:`${C.gold}12`, border:`1.5px solid ${C.gold}50`, borderRadius:9, color:C.gold, fontSize:14, fontWeight:700, outline:"none" }} />
+        </div>
+        <FI label="Lot Number"     value={form.lotNumber}        onChange={v=>setForm(p=>({...p,lotNumber:v}))}        placeholder="LOT-XXX-001" />
+        <FI label="GNR References" value={form.gnrRefs}          onChange={v=>setForm(p=>({...p,gnrRefs:v}))}          placeholder="GNR-MSZ-0001, ..." />
+        <FI label="Truck Plate"    value={form.truckPlate||""}   onChange={v=>setForm(p=>({...p,truckPlate:v}))}       placeholder="RAC 123 A" />
+        <FI label="Driver Name"    value={form.driverName||""}   onChange={v=>setForm(p=>({...p,driverName:v}))}       placeholder="Driver full name" />
+        <FI label="Seal Number"    value={form.sealNumber||""}   onChange={v=>setForm(p=>({...p,sealNumber:v}))}       placeholder="Seal / Lock No." />
+        <FI label="Cherry Received at Station (kg)" type="number" value={form.cherryReceivedKg||""} onChange={v=>setForm(p=>({...p,cherryReceivedKg:v}))} placeholder="Total cherry kg (for rendement)" />
       </div>
-      <div style={{ marginTop:12 }}><FI label="Notes" value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="Optional" /></div>
-      <MF onCancel={() => setShowForm(false)} onSave={sendShipment} label="Send to Warehouse" color={C.gold} />
+      <div style={{ fontSize:11, fontWeight:700, color:C.info, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:10 }}>📋 Outturn / Rendement</div>
+      <div style={{ background:C.bgDeep, borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:10 }}>
+          <FI label="A1 Full Washed (%)" type="number" value={form.outA1||""} onChange={v=>setForm(p=>({...p,outA1:v}))} placeholder="%" />
+          <FI label="A2 Full Washed (%)" type="number" value={form.outA2||""} onChange={v=>setForm(p=>({...p,outA2:v}))} placeholder="%" />
+          <FI label="A2 Trie (%)"        type="number" value={form.outTriage||""} onChange={v=>setForm(p=>({...p,outTriage:v}))} placeholder="%" />
+          <FI label="A3 (%)"             type="number" value={form.outA3||""} onChange={v=>setForm(p=>({...p,outA3:v}))} placeholder="%" />
+          <FI label="Moisture (%)"       type="number" value={form.moisture||""} onChange={v=>setForm(p=>({...p,moisture:v}))} placeholder="e.g. 11.5" />
+          <FI label="Screen Size"        value={form.screenSize||""} onChange={v=>setForm(p=>({...p,screenSize:v}))} placeholder="e.g. 15+" />
+        </div>
+        {form.cherryReceivedKg && form.totalKg && <div style={{ background:`${C.success}12`, border:`1px solid ${C.success}30`, borderRadius:8, padding:"10px 14px", display:"flex", gap:20, flexWrap:"wrap" }}>
+          <div><div style={{ fontSize:10, color:C.textMuted, textTransform:"uppercase" }}>Rendement</div>
+            <div style={{ fontSize:20, fontWeight:800, color:C.success }}>{((+form.totalKg / +form.cherryReceivedKg)*100).toFixed(2)}%</div></div>
+          <div><div style={{ fontSize:10, color:C.textMuted, textTransform:"uppercase" }}>Parchment</div>
+            <div style={{ fontSize:16, fontWeight:700, color:C.gold }}>{(+form.totalKg).toLocaleString()} kg</div></div>
+          <div><div style={{ fontSize:10, color:C.textMuted, textTransform:"uppercase" }}>Cherry</div>
+            <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{(+form.cherryReceivedKg).toLocaleString()} kg</div></div>
+        </div>}
+      </div>
+      <FI label="Notes / Remarks" value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="Optional remarks..." />
+      <MF onCancel={() => setShowForm(false)} onSave={sendShipment} label="💾 Save Shipment + Generate Delivery Note" color={C.gold} />
     </Modal>}
 
     {/* Movement form */}
@@ -3429,7 +3809,7 @@ function WarehousePage() {
 // Workflow: HQ Staff submits → Finance approves → MD releases cheque
 // ═══════════════════════════════════════════════════════════════════════════
 function FieldRequisitionPage() {
-  const { currentUser: u, fundRequests, setFundRequests, users, addNote } = useApp();
+  const { currentUser: u, fundRequests, setFundRequests, syncToServer, users, addNote } = useApp();
   // Filter to only HQ field requisitions (type === "hq_field_req")
   const reqs = fundRequests.filter(f => f.type === "hq_field_req");
 
@@ -3469,6 +3849,7 @@ function FieldRequisitionPage() {
       reason: form.purpose,
     };
     setFundRequests(p => [rec, ...p]);
+    syncToServer("fund_requests", [rec]).catch(() => {});
     addNote("Field requisition submitted — awaiting Finance approval", "success");
     setForm(emptyForm);
     setTab("list");
@@ -3476,10 +3857,13 @@ function FieldRequisitionPage() {
 
   // ── Finance approves ─────────────────────────────────────────────
   const doApprove = (id) => {
-    setFundRequests(p => p.map(f => f.id === id ? {
-      ...f, status: "pending_md_release",
-      financeApprovedBy: u.id, financeApprovedAt: new Date().toLocaleString(), financeNotes: approveNotes
-    } : f));
+    setFundRequests(p => p.map(f => {
+      if (f.id !== id) return f;
+      const updated = { ...f, status: "pending_md_release",
+        financeApprovedBy: u.id, financeApprovedAt: new Date().toLocaleString(), financeNotes: approveNotes };
+      syncToServer("fund_requests", [updated]).catch(() => {});
+      return updated;
+    }));
     setApproveModal(null); setApproveNotes("");
     addNote("Requisition approved by Finance — forwarded to MD for cheque release", "success");
   };
@@ -3487,19 +3871,27 @@ function FieldRequisitionPage() {
   // ── MD releases cheque ───────────────────────────────────────────
   const doRelease = (id) => {
     if (!releaseForm.chequeNo || !releaseForm.amount) { return addNote("Enter cheque number and amount", "warning"); }
-    setFundRequests(p => p.map(f => f.id === id ? {
-      ...f, status: "cheque_released",
-      chequeReleasedBy: u.id, chequeReleasedAt: new Date().toLocaleString(),
-      chequeNo: releaseForm.chequeNo, amount: parseFloat(releaseForm.amount)||f.amount,
-      releaseMethod: releaseForm.method, releaseNotes: releaseForm.notes
-    } : f));
+    setFundRequests(p => p.map(f => {
+      if (f.id !== id) return f;
+      const updated = { ...f, status: "cheque_released",
+        chequeReleasedBy: u.id, chequeReleasedAt: new Date().toLocaleString(),
+        chequeNo: releaseForm.chequeNo, amount: parseFloat(releaseForm.amount)||f.amount,
+        releaseMethod: releaseForm.method, releaseNotes: releaseForm.notes };
+      syncToServer("fund_requests", [updated]).catch(() => {});
+      return updated;
+    }));
     setReleaseModal(null); setReleaseForm({ chequeNo:"", amount:"", method:"cheque", notes:"" });
     addNote("Cheque released — requisition complete", "success");
   };
 
   // ── Reject ───────────────────────────────────────────────────────
   const doReject = (id) => {
-    setFundRequests(p => p.map(f => f.id === id ? { ...f, status: "rejected", financeNotes: rejectNotes } : f));
+    setFundRequests(p => p.map(f => {
+      if (f.id !== id) return f;
+      const updated = { ...f, status: "rejected", financeNotes: rejectNotes };
+      syncToServer("fund_requests", [updated]).catch(() => {});
+      return updated;
+    }));
     setRejectModal(null); setRejectNotes("");
     addNote("Requisition rejected", "warning");
   };
