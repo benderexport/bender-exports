@@ -1,225 +1,3 @@
-coconst C = {
-  // Base
-  bg:       "#0A0F0A",
-  bgCard:   "#111714",
-  bgDeep:   "#0D1210",
-  surface:  "#161E17",
-  surfaceHover: "#1C2720",
-  // Borders
-  border:      "#1F2E21",
-  borderLight: "#2A3E2C",
-  borderGlow:  "#C8A84B30",
-  // Text
-  text:      "#EDF2ED",
-  textMuted: "#7A9A7C",
-  textDim:   "#3E5C40",
-  // Brand gold
-  gold:      "#C8A84B",
-  goldLight: "#E4C46A",
-  goldDim:   "#7A6020",
-  goldGlow:  "#C8A84B20",
-  // Coffee / Cherry
-  coffee:    "#C4793C",
-  coffeeLight:"#E8965A",
-  coffeeBg:  "#1A0E06",
-  // Machinery
-  machinery:     "#4A8EC8",
-  machineryLight:"#6AAEE8",
-  machineryBg:   "#060F1A",
-  // Construction
-  construction:      "#9A6A30",
-  constructionLight: "#C8903E",
-  constructionBg:    "#1A1006",
-  // Semantic
-  danger:      "#E05050",
-  dangerLight: "#F07070",
-  dangerBg:    "#1A0808",
-  success:     "#4EC866",
-  successBg:   "#081A0C",
-  warning:     "#E0A030",
-  warningLight:"#F0C050",
-  warningBg:   "#1A1208",
-  info:        "#4A98E0",
-  infoBg:      "#080F1A",
-  purple:      "#9A5EE0",
-  purpleLight: "#BA80F8",
-  purpleBg:    "#100816",
-  // Gradients (used as strings)
-  gradSidebar: "linear-gradient(180deg,#0E1A0F 0%,#0A0F0A 100%)",
-  gradGold:    "linear-gradient(135deg,#C8A84B,#E4C46A)",
-  gradCard:    "linear-gradient(145deg,#141C15,#111714)",
-};
-const FONT = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cormorant:wght@400;600;700&display=swap');`;
-const GS = `${FONT}
-*{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
-body{font-family:'Inter',sans-serif;background:${C.bg};color:${C.text};overflow:auto;-webkit-font-smoothing:antialiased;}
-/* Scrollbar */
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:${C.border};border-radius:10px;}
-::-webkit-scrollbar-thumb:hover{background:${C.borderLight};}
-/* Animations */
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes slideIn{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes scaleIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
-/* Typography */
-input,select,textarea,button{font-family:'Inter',sans-serif;}
-/* Layout helpers */
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.three-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
-/* Card hover lift */
-.card-hover{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;}
-.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
-/* Nav item */
-.nav-item{transition:all .18s ease;border-radius:10px;cursor:pointer;}
-.nav-item:hover{background:${C.surfaceHover};}
-.nav-item.active{background:linear-gradient(135deg,${C.gold}22,${C.gold}0A);border:1px solid ${C.gold}30;}
-/* Button base */
-.btn{display:inline-flex;align-items:center;gap:6px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;border-radius:8px;transition:all .18s ease;}
-.btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
-.btn:active{transform:translateY(0);}
-/* Table row */
-.tbl-row{transition:background .12s;}
-.tbl-row:hover{background:${C.surfaceHover}!important;}
-/* Input focus */
-.inp:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px ${C.gold}15;}
-/* Badge */
-.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;}
-/* Responsive */
-@media(max-width:768px){
-  .two-col{grid-template-columns:1fr!important;}
-  .hide-mobile{display:none!important;}
-  .show-mobile{display:flex!important;}
-  .main-content{margin-left:0!important;}
-  .page-pad{padding:14px!important;}
-  .topbar-title{font-size:16px!important;}
-  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
-}
-@media(min-width:769px){
-  .show-mobile{display:none!important;}
-}`;
-const Ctx = createContext(null);
-const useApp = () => useContext(Ctx);
-// ── Seed data removed — Supabase is the only source of truth ────────
-// All data is pulled from Supabase on boot. Nothing is hardcoded here.
-// To add initial data, use seed_users.js or insert directly in Supabase.
-const INIT_CWS             = [];
-const INIT_FARMERS         = [];
-const INIT_CHERRY          = [];
-const INIT_CASHBOOK        = [];
-const INIT_BANK            = [];
-const INIT_EXPENSES        = [];
-const INIT_DEBTS           = [];
-const INIT_STOCK           = [];
-const INIT_FUND_REQUESTS   = [];
-const INIT_MACHINES        = [];
-const INIT_ASSISTANTS      = [];
-const INIT_TASKS           = [];
-const INIT_MACH_TX         = [];
-const INIT_DRIVER_LOGS     = [];
-const INIT_LEAVES          = [];
-const INIT_SEASONS         = [];
-const INIT_STATION_SEASONS = [];
-const INIT_WAREHOUSE_STOCK = [];
-const INIT_PROJECTS        = [];
-const INIT_PROJECT_COSTS   = [];
-const INIT_MILESTONES      = [];
-const INIT_CONTRACTORS     = [];
-const INIT_USERS           = [];
-const INIT_PENDING = [];
-const INIT_SYSTEM = {
-  logoUrl: null,
-  heroImageUrl: "",
-  companyName: "Bender Exports Ltd.",
-  tagline: "Integrated Financial Management \xB7 Kigali, Rwanda",
-  labels: { coffee: "Bender Coffee", machinery: "Bender Machine", construction: "Bender Construction" },
-  businessModels: [
-    { id: "coffee", label: "Bender Coffee", icon: "\u2615", active: true },
-    { id: "machinery", label: "Bender Machine", icon: "\u{1F3D7}\uFE0F", active: true },
-    { id: "construction", label: "Bender Construction", icon: "\u{1F3DB}\uFE0F", active: true }
-  ]
-};
-const ROLES = {
-  sudo: { label: "Super Admin", color: C.purple, light: C.purpleLight, priority: 10 },
-  md: { label: "Managing Director", color: C.gold, light: C.goldLight, priority: 9 },
-  admin: { label: "Administrator", color: C.info, light: "#68A8E8", priority: 8 },
-  hq_finance: { label: "HQ Finance Officer", color: C.warning, light: C.warningLight, priority: 7 },
-  hq_accountant: { label: "HQ Accountant", color: "#5A8A6A", light: "#7ABAA0", priority: 7 },
-  hq_ops: { label: "HQ Ops Manager", color: "#7A5AC8", light: "#9A7AE8", priority: 6 },
-  hq_it:  { label: "HQ IT Officer",  color: "#3A8FC8", light: "#5AAFE8", priority: 6 },
-  station_manager: { label: "Station Manager", color: C.coffee, light: C.coffeeLight, priority: 5 },
-  cashier: { label: "Cashier", color: C.success, light: "#78D890", priority: 4 },
-  clerk: { label: "Clerk", color: "#7AAABB", light: "#9ACADB", priority: 3 },
-  driver: { label: "Driver", color: C.machinery, light: C.machineryLight, priority: 2 }
-};
-const HQ_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"];
-const WAREHOUSE_ROLES = ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"];
-const STATION_ROLES = ["station_manager", "cashier", "clerk"];
-const hasAccess = (u, sec) => {
-  const map = {
-    coffee: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager", "cashier", "clerk"],
-    machinery: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "driver"],
-    construction: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"],
-    warehouse: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
-    users: ["sudo", "md"],
-    import: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
-    system: ["sudo"],
-    reports: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager", "cashier"],
-    driver_log: ["driver"],
-    fund_requests: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
-    field_requisition: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
-    chat: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it", "station_manager", "cashier", "clerk", "driver"],
-    loans:     ["sudo", "md"],
-    contracts: ["sudo", "md"]
-  };
-  return (map[sec] || []).includes(u.role);
-};
-const canApproveFunds = (r) => ["sudo", "md"].includes(r);
-const canVerifyFunds = (r) => ["sudo", "md", "hq_ops"].includes(r);
-const canManageCash = (r) => ["sudo", "md", "hq_finance", "cashier"].includes(r);
-const canEnterCherry = (r) => ["clerk", "sudo", "md", "admin"].includes(r);
-const canPayGNR = (r) => ["cashier", "sudo", "md", "admin"].includes(r);
-const canRecordExpense = (r) => ["cashier", "sudo", "md", "admin", "hq_finance"].includes(r);
-const canApproveExpense = (r) => ["station_manager", "sudo", "md", "admin", "hq_finance"].includes(r);
-const canRegisterFarmer = (r) => ["station_manager", "sudo", "md", "admin"].includes(r);
-const canRequestFunds = (r) => ["station_manager", "sudo", "md", "admin"].includes(r);
-const canManageSeason = (r) => ["md", "sudo"].includes(r);
-const canSeeSeasonReports = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"].includes(r);
-const canSendToWarehouse = (r) => ["station_manager", "sudo", "md", "admin"].includes(r);
-const canConfirmWarehouse = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"].includes(r);
-const canManageConstruction = (r) => ["sudo", "md", "admin", "hq_finance", "hq_ops"].includes(r);
-const canSeeAllStations = (r) => HQ_ROLES.includes(r) || ["admin"].includes(r);
-const canManageChats    = (r) => ["sudo", "md", "admin"].includes(r);
-const canSeeMDDashboard = (r) => ["sudo", "md"].includes(r);
-const canSubmitFieldReq = (r) => ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"].includes(r);
-const canApproveFieldReq = (r) => ["sudo", "hq_finance", "admin"].includes(r);
-const canReleaseFieldCheque = (r) => ["sudo", "md"].includes(r);
-const fmtRWF = (n) => `${Number(n || 0).toLocaleString()} RWF`;
-const fmtKg = (n) => `${Number(n || 0).toLocaleString()} kg`;
-const today = () => (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-const BtnS = (color, ghost = false, outline = false) => ({
-  display: "inline-flex", alignItems: "center", gap: 6,
-  border: "none", borderRadius: 10, cursor: "pointer",
-  fontWeight: 600, fontFamily: "'Inter',sans-serif",
-  fontSize: 13, transition: "all .18s ease",
-  ...(ghost
-    ? { background: `${color}15`, color, border: `1px solid ${color}28` }
-    : outline
-    ? { background: "transparent", color, border: `1px solid ${color}40` }
-    : { background: `linear-gradient(135deg,${color},${color}CC)`, color: "#0A0F0A", boxShadow: `0 4px 14px ${color}30` })
-});
-const inpS = () => ({
-  width: "100%", padding: "7px 10px", background: C.bgDeep,
-  border: `1.5px solid ${C.border}`, borderRadius: 8,
-  color: C.text, fontSize: 12, fontFamily: "'Inter',sans-serif",
-  outline: "none",
-});
 const C = {
   // Base
   bg:       "#0A0F0A",
@@ -396,6 +174,7 @@ const hasAccess = (u, sec) => {
     driver_log: ["driver"],
     fund_requests: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "station_manager"],
     field_requisition: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it"],
+    field_requests: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops"],
     chat: ["sudo", "md", "admin", "hq_finance", "hq_accountant", "hq_ops", "hq_it", "station_manager", "cashier", "clerk", "driver"],
     loans:     ["sudo", "md"],
     contracts: ["sudo", "md"]
@@ -475,7 +254,6 @@ const uid = () => typeof crypto !== "undefined" && crypto.randomUUID
     });
 
 // Global authenticated fetch — attaches Bearer token from localStorage automatically
-// Wraps fetch with an AbortController timeout (default 10s)
 const fetchWithTimeout = (url, opts = {}, ms = 10000) => {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), ms);
@@ -491,7 +269,7 @@ const apiFetch = async (path, opts = {}) => {
       ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       ...(opts.headers || {})
     }
-  }, 12000);
+  });
   if (res.status === 401) {
     // Try to refresh the token before giving up
     const refresh = localStorage.getItem("bender_refresh");
@@ -932,9 +710,10 @@ function App() {
   const setSystem = mkSet(setSystemRaw, "system");
   useEffect(() => {
     async function init() {
-      console.log("[Bender BOOT] init() started");
       try {
-        console.log("[Bender BOOT] Step 1: checking seed...");
+        // ── Supabase-first boot ───────────────────────────────────────
+        // Wipe any old demo localStorage from previous versions.
+        // SEED_VERSION bump ensures every machine runs this once.
         if (!await DB.isSeeded()) {
           DB.reset(); // clears all db:* keys and old seed flag
           await DB.markSeeded(); // mark done so this only runs once per version
@@ -980,7 +759,6 @@ function App() {
       } catch (e) {
         console.error("DB init error", e);
       }
-      console.log("[Bender BOOT] Step 2: localStorage loaded");
       // NOTE: setDbReady(true) is called AFTER the server pull below,
       // so the app never renders with stale/empty data.
 
@@ -991,10 +769,7 @@ function App() {
       // Plain fetch is used (not apiFetch) to avoid the 401→reload loop
       // that apiFetch triggers when no token is stored yet.
       try {
-        console.log("[Bender BOOT] Step 3: starting server pull...");
         let token = localStorage.getItem("bender_token");
-
-        // Validate JWT expiry before using it — a stale token causes 401 loops
         if (token) {
           try {
             const payload = JSON.parse(atob(token.split(".")[1]));
@@ -1011,17 +786,10 @@ function App() {
         // don't overwrite changes they made while offline.
         if (token) {
           setLoadingStatus("Syncing offline changes…");
-          console.log("[Bender BOOT] Step 4: flushing offline queue...");
-          try {
-            await Promise.race([
-              flushOfflineQueue(),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("flush timeout")), 6000))
-            ]);
-          } catch(_) {} // timeout or error — continue anyway
+          try { await Promise.race([flushOfflineQueue(), new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),6000))]); } catch(_) {}
         }
 
         setLoadingStatus("Fetching data from database…");
-        console.log("[Bender BOOT] Step 5: calling /api/pull...");
 
         const headers = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -1107,7 +875,6 @@ function App() {
       } catch (e) {
         console.warn("[Bender] Server pull failed on boot:", e.message);
       } finally {
-        console.log("[Bender BOOT] Step 6: setDbReady(true) — init complete");
         setDbReady(true);
       }
     }
@@ -1218,17 +985,12 @@ function App() {
       // so any token-gated data (e.g. role-filtered views) is loaded fresh.
       setDbReady(false);
       setLoadingStatus("Loading your data…");
-      try {
-        await Promise.race([
-          flushOfflineQueue(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("flush timeout")), 6000))
-        ]);
-      } catch(_) {} // timeout or network error — continue anyway
+      try { await Promise.race([flushOfflineQueue(), new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),6000))]); } catch(_) {}
       setLoadingStatus("Pulling latest data from server…");
       const token = localStorage.getItem("bender_token");
       const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
       try {
-        const res = await fetchWithTimeout("/api/pull?since=1970-01-01T00%3A00%3A00Z", { headers }, 8000);
+        const res = await fetch("/api/pull?since=1970-01-01T00%3A00%3A00Z", { headers });
         if (res.ok) {
           const { delta } = await res.json();
           if (delta) {
@@ -1255,7 +1017,7 @@ function App() {
             }
           }
         }
-        const usersRes = await fetchWithTimeout("/api/users", { headers }, 8000);
+        const usersRes = await fetch("/api/users", { headers });
         if (usersRes.ok) {
           const su = await usersRes.json();
           if (Array.isArray(su) && su.length > 0) {
@@ -1273,7 +1035,6 @@ function App() {
   }} system={system} /></Ctx.Provider>;
   return <Ctx.Provider value={ctx}><style>{GS}</style><Shell onLogout={() => {
     localStorage.removeItem("bender_token");
-    localStorage.removeItem("bender_user");
     // Clear the token from the service worker so it stops background syncs
     swNotify("SET_TOKEN", { token: null });
     setCurrentUser(null);
@@ -1691,7 +1452,8 @@ function Shell({ onLogout }) {
     { id: "users",        label: "Users",                                              icon: "👥", show: hasAccess(u, "users") },
     { id: "system",       label: "System",                                             icon: "⚙️", show: hasAccess(u, "system") },
     { id: "import",       label: "Import Data",                                        icon: "📥", show: hasAccess(u, "import") },
-    { id: "field_requisition", label: "Field Requisition",                            icon: "📋", show: hasAccess(u, "field_requisition") },
+    { id: "field_requests",  label: "Field Fund Requests",  icon: "📋", show: hasAccess(u, "field_requests") },
+        { id: "field_requisition", label: "Field Requisition",                            icon: "📋", show: hasAccess(u, "field_requisition") },
     { id: "chat",              label: "Team Chat",                                        icon: "💬", show: hasAccess(u, "chat") },
     { id: "loans",             label: "MD Loans",                                         icon: "💰", show: hasAccess(u, "loans") },
     { id: "contracts",         label: "Export Contracts",                                 icon: "📄", show: hasAccess(u, "contracts") },
@@ -1832,7 +1594,7 @@ function Shell({ onLogout }) {
 function PageRouter() {
   const { page, currentUser: u } = useApp();
   if (u.role === "driver") return <DriverHome />;
-  const views = { home: <HomePage />, coffee: <CoffeePage />, machinery: <MachineryPage />, construction: <ConstructionPage />, warehouse: <WarehousePage />, reports: <ReportsPage />, users: <UsersPage />, system: <SystemPage />, import: <ImportPage />, field_requisition: <FieldRequisitionPage />, chat: <ChatPage />, loans: <LoansPage />, contracts: <ContractsPage /> };
+  const views = { home: <HomePage />, coffee: <CoffeePage />, machinery: <MachineryPage />, construction: <ConstructionPage />, warehouse: <WarehousePage />, reports: <ReportsPage />, users: <UsersPage />, system: <SystemPage />, import: <ImportPage />, field_requisition: <FieldRequisitionPage />, field_requests: <FieldRequestsPage />, chat: <ChatPage />, loans: <LoansPage />, contracts: <ContractsPage /> };
   return <div style={{ animation: "fadeUp .3s ease both" }}>{views[page.view] || <HomePage />}</div>;
 }
 // ═══════════════════════════════════════════════════════════════════
@@ -2351,7 +2113,7 @@ function SeasonsPage({ onBack }) {
       addNote("Close the current active season before opening a new one", "warning");
       return;
     }
-    setSeasons((p) => [{ id: uid(), name: form.name, startDate: form.startDate, endDate: form.endDate || null, rateStandard: +form.rateStandard, rateFlotant: +form.rateFlotant, status: "active", createdBy: u.id, createdAt: today(), closedAt: null, notes: form.notes, stationTargets: form.stationTargets || {}, outturnTargets: form.outturnTargets || {} }, ...p]);
+    setSeasons((p) => [{ id: uid(), name: form.name, startDate: form.startDate, endDate: form.endDate || null, rateStandard: +form.rateStandard, rateFlotant: +form.rateFlotant, status: "active", createdBy: u.id, createdAt: today(), closedAt: null, notes: form.notes, stationTargets: form.stationTargets||{}, outturnTargets: form.outturnTargets||{} }, ...p]);
     setShowForm(false);
     setForm({ name: "", startDate: "", endDate: "", rateStandard: "155", rateFlotant: "80", notes: "", stationTargets: {}, outturnTargets: { A1: "", A2: "", A3: "", triage: "" } });
     addNote("New season created and opened", "success");
@@ -2428,42 +2190,31 @@ function SeasonsPage({ onBack }) {
             <FI label="Standard Rate (RWF/kg)" type="number" value={form.rateStandard} onChange={(v) => setForm((p) => ({ ...p, rateStandard: v }))} placeholder="155" />
             <FI label="Flotant Rate (RWF/kg)" type="number" value={form.rateFlotant} onChange={(v) => setForm((p) => ({ ...p, rateFlotant: v }))} placeholder="80" />
             <div style={{ gridColumn: "1/-1" }}><FI label="Notes" value={form.notes} onChange={(v) => setForm((p) => ({ ...p, notes: v }))} placeholder="Optional notes..." /></div>
-            {cwsList.length > 0 && <div style={{ gridColumn: "1/-1" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>Target Parchment (kg) per Station</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 8 }}>
-                {cwsList.map(cws => <div key={cws.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ fontSize: 11, color: C.text, minWidth: 90, flexShrink: 0 }}>{cws.name}</div>
-                  <input type="number" min="0" placeholder="e.g. 50000"
-                    value={form.stationTargets?.[cws.id] || ""}
-                    onChange={e => setForm(p => ({ ...p, stationTargets: { ...p.stationTargets, [cws.id]: e.target.value } }))}
-                    style={{ flex: 1, padding: "6px 10px", background: C.bgDeep, border: `1.5px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 12, outline: "none" }} />
-                  <span style={{ fontSize: 10, color: C.textDim }}>kg</span>
+          </div>
+            {cwsList.length > 0 && <div style={{ gridColumn:"1/-1" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:8 }}>Target Parchment (kg) per Station</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:8 }}>
+                {cwsList.map(cws => <div key={cws.id} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ fontSize:11, color:C.text, minWidth:90, flexShrink:0 }}>{cws.name}</div>
+                  <input type="number" min="0" placeholder="kg" value={form.stationTargets?.[cws.id]||""} onChange={e=>setForm(p=>({...p,stationTargets:{...p.stationTargets,[cws.id]:e.target.value}}))} style={{ flex:1, padding:"6px 10px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:12, outline:"none" }} />
                 </div>)}
               </div>
             </div>}
-            <div style={{ gridColumn: "1/-1" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>Expected Outturn Targets (%)</div>
-              <div style={{ background: C.bgDeep, borderRadius: 10, padding: "12px 14px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
-                {[["A1","Grade A1 (Top)",C.success],["A2","Grade A2",C.gold],["A3","Grade A3",C.warning],["triage","Triage / Defects",C.danger]].map(([key,label,col]) => (
+            <div style={{ gridColumn:"1/-1" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:8 }}>Expected Outturn Targets (%)</div>
+              <div style={{ background:C.bgDeep, borderRadius:10, padding:"12px 14px", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:10 }}>
+                {[["A1","Grade A1",C.success],["A2","Grade A2",C.gold],["A3","Grade A3",C.warning],["triage","Triage",C.danger]].map(([key,label,col])=>(
                   <div key={key}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: col, marginBottom: 4 }}>{label}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <input type="number" min="0" max="100" placeholder="0"
-                        value={form.outturnTargets?.[key] || ""}
-                        onChange={e => setForm(p => ({ ...p, outturnTargets: { ...p.outturnTargets, [key]: e.target.value } }))}
-                        style={{ flex: 1, padding: "6px 10px", background: C.surface, border: `1.5px solid ${col}40`, borderRadius: 8, color: col, fontSize: 13, fontWeight: 700, outline: "none", textAlign: "center" }} />
-                      <span style={{ fontSize: 11, color: C.textDim }}>%</span>
+                    <div style={{ fontSize:10, fontWeight:700, color:col, marginBottom:4 }}>{label}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                      <input type="number" min="0" max="100" placeholder="0" value={form.outturnTargets?.[key]||""} onChange={e=>setForm(p=>({...p,outturnTargets:{...p.outturnTargets,[key]:e.target.value}}))} style={{ flex:1, padding:"6px 8px", background:C.surface, border:`1.5px solid ${col}40`, borderRadius:8, color:col, fontSize:13, fontWeight:700, outline:"none", textAlign:"center" }} />
+                      <span style={{ fontSize:11, color:C.textDim }}>%</span>
                     </div>
                   </div>
                 ))}
-                <div style={{ gridColumn: "1/-1", fontSize: 10, color: C.textDim }}>
-                  Total: {["A1","A2","A3","triage"].reduce((s,k) => s + (+form.outturnTargets?.[k]||0), 0)}% 
-                  {["A1","A2","A3","triage"].reduce((s,k) => s + (+form.outturnTargets?.[k]||0), 0) !== 100 && 
-                    <span style={{ color: C.warning }}> (should total 100%)</span>}
-                </div>
+                <div style={{ gridColumn:"1/-1", fontSize:10, color:C.textDim }}>Total: {["A1","A2","A3","triage"].reduce((s,k)=>s+(+form.outturnTargets?.[k]||0),0)}%</div>
               </div>
             </div>
-          </div>
           <MF onCancel={() => setShowForm(false)} onSave={createSeason} label="Open Season" color={C.success} />
         </Modal>}
       {showEnrollForm && <Modal title="Enroll Station in Season" onClose={() => setShowEnrollForm(null)}>
@@ -3338,7 +3089,7 @@ function WarehousePage() {
   // Market price handled by shared CoffeeMarketWidget + useCoffeeMarket hook
 
   // ── Blank forms ────────────────────────────────────────────────
-  const blankShip = { fromCwsId:"", grade:"A1 Full Washed", numSacs:"", kgPerSac:"60", totalKg:"", lotNumber:"", gnrRefs:"", truckPlate:"", driverName:"", sealNumber:"", destination:"warehouse", outA1:"", outA2:"", outA3:"", outTriage:"", moisture:"", screenSize:"", notes:"", cherryReceivedKg:"" };
+  const blankShip = { fromCwsId:"", grade:"A1 Full Washed", numSacs:"", kgPerSac:"60", tonnes:"", lotNumber:"", gnrRefs:"", truckPlate:"", driverName:"", sealNumber:"", destination:"warehouse", moisture:"", screenSize:"", notes:"" };
   const [form, setForm] = useState(blankShip);
 
   const blankMv = { direction:"in", kg:"", grade:"Parchment", location:"", lotNumber:"", gnrRefs:"",
@@ -3367,138 +3118,7 @@ function WarehousePage() {
   };
 
   // ── Save legacy shipment ───────────────────────────────────────
-  const sendShipment = () => {
-    if (!form.fromCwsId || !form.tonnes) return addNote("Station and tonnes required","warning");
-    const dnNo = `DN-${Date.now().toString().slice(-6)}`;
-    const cws  = cwsList.find(c => c.id === form.fromCwsId);
-    const shipId = uid();
-    const shipRec = {
-      id: shipId, fromCwsId: form.fromCwsId, sentBy: u.id,
-      date: today(), grade: form.grade, tonnes: parseFloat(form.tonnes),
-      bags: form.bags ? +form.bags : null,
-      lotNumber: form.lotNumber, gnrRefs: form.gnrRefs,
-      truckPlate: form.truckPlate, driverName: form.driverName,
-      sealNumber: form.sealNumber, destination: form.destination || "warehouse",
-      outA1: form.outA1, outA2: form.outA2, outA3: form.outA3, outTriage: form.outTriage,
-      moisture: form.moisture, screenSize: form.screenSize,
-      deliveryNoteNo: dnNo, status:"pending",
-      confirmedBy:null, confirmedAt:null, notes:form.notes,
-    };
-    setWarehouseStock(p => [...p, shipRec]);
-    setShowForm(false); setForm(blankShip);
-    addNote(`Shipment saved — Delivery Note ${dnNo} generated`, "warehouse");
-    // ── Print delivery note ──────────────────────────────────────
-    const w = window.open("","_blank","width=820,height=960");
-    const dest = (form.destination||"Warehouse").replace(/_/g," ");
-    const rend = rendement ? `${rendement}%` : "—";
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Delivery Note ${dnNo}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#111;max-width:780px;margin:0 auto;font-size:13px}
-      .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #C8A84B}
-      h1{font-size:20px;font-weight:900;color:#1a1a1a}
-      .cws-name{font-size:15px;font-weight:700;color:#5a3e10;margin-top:2px}
-      .sub{color:#777;font-size:12px;margin-top:3px}
-      .dn-badge{background:#5a3e10;color:#C8A84B;font-size:14px;font-weight:800;padding:8px 18px;border-radius:8px;letter-spacing:0.5px}
-      .section{font-size:10px;font-weight:800;color:#5a3e10;text-transform:uppercase;letter-spacing:1.2px;margin:16px 0 8px;padding-bottom:4px;border-bottom:2px solid #C8A84B}
-      table{width:100%;border-collapse:collapse;margin-bottom:12px}
-      td,th{padding:7px 10px;border:1px solid #ddd;vertical-align:top}
-      thead th{background:#f5efe0;font-weight:800;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
-      .total-row td{background:#f5efe0;font-weight:800;font-size:14px}
-      .info-th{background:#fafafa;font-weight:700;text-align:left;width:170px;color:#444;font-size:12px}
-      .rend-box{background:#e8f5e9;border:2px solid #4caf50;border-radius:10px;padding:14px 20px;display:flex;gap:32px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-      .r-val{font-size:28px;font-weight:900;color:#2e7d32}
-      .r-lbl{font-size:10px;color:#555;text-transform:uppercase;font-weight:700;margin-top:2px}
-      .outturn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
-      .g-box{border:1px solid #eee;border-radius:8px;padding:10px;text-align:center}
-      .g-pct{font-size:20px;font-weight:800}
-      .g-lbl{font-size:10px;color:#777;margin-top:2px}
-      .sig-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;margin-top:36px}
-      .sig-box{padding-top:8px}
-      .sig-line{border-top:1.5px solid #333;margin-bottom:6px}
-      .sig-title{font-size:10px;font-weight:800;color:#555;text-transform:uppercase}
-      @media print{body{padding:14px}button{display:none}}
-    </style></head><body>
-    <div class="hdr">
-      <div>
-        <h1>BENDER EXPORTS LTD</h1>
-        <div class="cws-name">${cws?.name || form.fromCwsId} — CWS</div>
-        <div class="sub">Report of Delivery Notes</div>
-      </div>
-      <div style="text-align:right">
-        <div class="dn-badge">DELIVERY NOTE #${dnNo}</div>
-        <div style="font-size:12px;color:#777;margin-top:6px">Date: ${today()}</div>
-        <div style="font-size:12px;color:#777">Destination: <strong>${dest}</strong></div>
-      </div>
-    </div>
 
-    <div class="section">Delivery Details</div>
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Grade</th><th>No. of Sacks Delivered</th><th>Qty / Sac (kg)</th><th>Total Quantity (kg)</th>
-      </tr></thead>
-      <tbody>
-        <tr>
-          <td>${today()}</td>
-          <td><strong>${form.grade}</strong></td>
-          <td style="text-align:center"><strong>${form.numSacs}</strong></td>
-          <td style="text-align:center">${form.kgPerSac||60}</td>
-          <td style="text-align:right;font-weight:700">${(+totalKg).toLocaleString()}</td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr class="total-row">
-          <td colspan="2" style="text-align:right">TOTAL Parchment Delivered</td>
-          <td style="text-align:center">${form.numSacs}</td>
-          <td></td>
-          <td style="text-align:right">${(+totalKg).toLocaleString()} kg</td>
-        </tr>
-      </tfoot>
-    </table>
-
-    <div class="section">Transport Details</div>
-    <table>
-      <tr><td class="info-th">Lot Number</td><td>${form.lotNumber||"—"}</td><td class="info-th">GNR References</td><td>${form.gnrRefs||"—"}</td></tr>
-      <tr><td class="info-th">Truck Plate</td><td>${form.truckPlate||"—"}</td><td class="info-th">Driver</td><td>${form.driverName||"—"}</td></tr>
-      <tr><td class="info-th">Seal Number</td><td>${form.sealNumber||"—"}</td><td class="info-th">Prepared By</td><td>${u.name} (${u.role})</td></tr>
-      ${form.notes?`<tr><td class="info-th">Notes</td><td colspan="3">${form.notes}</td></tr>`:""}
-    </table>
-
-    ${rendement ? `
-    <div class="section">Outturn / Rendement</div>
-    <div class="rend-box">
-      <div><div class="r-val">${rendement}%</div><div class="r-lbl">Rendement (Outturn)</div></div>
-      <div><div style="font-size:16px;font-weight:700">${(+totalKg).toLocaleString()} kg</div><div class="r-lbl">Parchment Delivered</div></div>
-      <div><div style="font-size:16px;font-weight:700">${(+form.cherryReceivedKg).toLocaleString()} kg</div><div class="r-lbl">Cherry Received</div></div>
-    </div>` : ""}
-
-    ${(form.outA1||form.outA2||form.outTriage||form.outA3) ? `
-    <div class="section">Grade Outturn</div>
-    <div class="outturn-grid">
-      <div class="g-box"><div class="g-pct" style="color:#2e7d32">${form.outA1||0}%</div><div class="g-lbl">A1 Full Washed</div></div>
-      <div class="g-box"><div class="g-pct" style="color:#C8A84B">${form.outA2||0}%</div><div class="g-lbl">A2 Full Washed</div></div>
-      <div class="g-box"><div class="g-pct" style="color:#e65100">${form.outTriage||0}%</div><div class="g-lbl">A2 Trie</div></div>
-      <div class="g-box"><div class="g-pct" style="color:#c62828">${form.outA3||0}%</div><div class="g-lbl">A3</div></div>
-    </div>
-    ${form.moisture?`<table><tr><td class="info-th">Moisture</td><td>${form.moisture}%</td><td class="info-th">Screen Size</td><td>${form.screenSize||"—"}</td></tr></table>`:""}
-    ` : ""}
-
-    <div class="section">Acknowledgement &amp; Signatures</div>
-    <div class="sig-row">
-      <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Prepared By (Accountant)</div><div style="margin-top:6px;font-size:12px">${u.name}</div></div>
-      <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Received By</div><div style="margin-top:6px;font-size:12px;color:#bbb">Name &amp; Stamp</div></div>
-      <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Authorized By</div><div style="margin-top:6px;font-size:12px;color:#bbb">MD / Warehouse Manager</div></div>
-    </div>
-    <div style="margin-top:28px;padding-top:10px;border-top:1px solid #eee;font-size:10px;color:#aaa;display:flex;justify-content:space-between">
-      <span>Bender Exports IOS · ${new Date().toLocaleString()}</span><span>${dnNo}</span>
-    </div>
-    <div style="margin-top:16px;text-align:center">
-      <button onclick="window.print()" style="padding:10px 28px;background:#C8A84B;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:10px">🖨 Print</button>
-      <button onclick="window.close()" style="padding:10px 20px;background:#eee;color:#333;border:none;border-radius:8px;font-size:13px;cursor:pointer">Close</button>
-    </div>
-    </body></html>`);
-    w.document.close();
-  };
 
   // ── Save stock movement ────────────────────────────────────────
   const saveMv = (f) => {
@@ -3728,7 +3348,7 @@ function WarehousePage() {
           : <div className="tbl-wrap">
               <table style={{ width:"100%", borderCollapse:"collapse" }}>
                 <thead><tr style={{ background:C.surface }}>
-                  {["Date","Station","Lot #","Grade","Tonnes","Status","Confirmed At","DN #"].map(h=><Th key={h}>{h}</Th>)}
+                  {["Date","Station","Lot #","Grade","Tonnes","Status","Confirmed At"].map(h=><Th key={h}>{h}</Th>)}
                 </tr></thead>
                 <tbody>
                   {warehouseStock.map(w => {
@@ -3743,9 +3363,6 @@ function WarehousePage() {
                       <Td style={{ fontWeight:700, color:C.info }}>{w.tonnes} T</Td>
                       <Td><SB status={w.status} /></Td>
                       <Td style={{ color:C.textDim, fontSize:11 }}>{w.confirmedAt?.split(" ")[0]||"—"}</Td>
-                      <Td>
-                        {w.deliveryNoteNo && <span style={{ fontSize:10, fontWeight:700, color:C.gold }}>{w.deliveryNoteNo}</span>}
-                      </Td>
                     </tr>;
                   })}
                 </tbody>
@@ -3753,166 +3370,176 @@ function WarehousePage() {
             </div>
         }
       </div>
-      {/* Summary strip */}
-      {warehouseStock.length > 0 && <div style={{ marginTop:14, background:C.bgDeep, borderRadius:10, padding:"12px 16px" }}>
-        <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:10 }}>Outturn Summary</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:10 }}>
-          {[["A1",C.success],["A2",C.gold],["A3",C.warning],["Triage",C.danger]].map(([grade,col]) => {
-            const key = grade === "Triage" ? "outTriage" : `out${grade}`;
-            const vals = warehouseStock.map(w => +w[key]||0).filter(v => v > 0);
-            const avg  = vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1) : "—";
-            return <div key={grade} style={{ background:C.gradCard, border:`1px solid ${col}25`, borderRadius:8, padding:"10px 12px", textAlign:"center" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:col }}>{avg}{avg !== "—" ? "%" : ""}</div>
-              <div style={{ fontSize:10, color:C.textDim, marginTop:2 }}>Avg {grade}</div>
-            </div>;
-          })}
-        </div>
-      </div>}
     </div>
   );
 
+
+  // ── Enhanced sendShipment with delivery note ────────────────────────
+  const sendShipment = () => {
+    if (!form.fromCwsId || !form.tonnes) return addNote("Station and tonnes required","warning");
+    const dnNo  = `DN-${Date.now().toString().slice(-6)}`;
+    const cws   = cwsList.find(c => c.id === form.fromCwsId);
+    const shipRec = {
+      id: uid(), fromCwsId: form.fromCwsId, sentBy: u.id,
+      date: today(), grade: form.grade,
+      numSacs: form.numSacs ? +form.numSacs : null,
+      kgPerSac: form.kgPerSac ? +form.kgPerSac : 60,
+      tonnes: parseFloat(form.tonnes),
+      lotNumber: form.lotNumber, gnrRefs: form.gnrRefs,
+      truckPlate: form.truckPlate, driverName: form.driverName,
+      sealNumber: form.sealNumber, destination: form.destination||"warehouse",
+      moisture: form.moisture, screenSize: form.screenSize,
+      deliveryNoteNo: dnNo, status:"pending",
+      confirmedBy:null, confirmedAt:null, notes:form.notes,
+    };
+    setWarehouseStock(p => [...p, shipRec]);
+    setShowForm(false); setForm(blankShip);
+    addNote(`Shipment saved — Delivery Note ${dnNo} generated`, 'success');
+    // Print delivery note
+    try {
+      const cws = cwsList.find(c => c.id === form.fromCwsId);
+      const w = window.open('','_blank','width=800,height=900');
+      w.document.write(`<html><head><title>Delivery Note ${dnNo}</title><style>body{font-family:Arial,sans-serif;padding:32px;max-width:750px;margin:0 auto}h1{font-size:22px;font-weight:800}table{width:100%;border-collapse:collapse;margin:16px 0}td,th{padding:8px 12px;border:1px solid #ddd;font-size:13px}th{background:#f5f0e8;font-weight:700;text-align:left;width:180px}.sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:40px}.sig-b{border-top:1.5px solid #333;padding-top:8px;font-size:12px}@media print{.np{display:none}}</style></head><body><div style='display:flex;justify-content:space-between;margin-bottom:16px'><div><h1>Bender Exports Ltd.</h1><div style='color:#555;font-size:13px'>Integrated Operations System</div></div><div style='text-align:right'><div style='font-size:15px;font-weight:700;color:#8B6914;border:2px solid #C8A84B;padding:6px 16px;border-radius:8px;display:inline-block'>DELIVERY NOTE #${dnNo}</div><div style='font-size:12px;color:#555;margin-top:4px'>Date: ${form.date || today()}</div></div></div><table><tr><th>From Station</th><td>${cws?.name||form.fromCwsId}</td><th>Destination</th><td>${(form.destination||'Warehouse')}</td></tr><tr><th>Grade</th><td>${form.grade}</td><th>Lot Number</th><td>${form.lotNumber||'—'}</td></tr><tr><th>N° of Sacs</th><td style='font-weight:700'>${form.numSacs||'—'}</td><th>Kg / Sac</th><td>${form.kgPerSac||60} kg</td></tr><tr><th>Total Quantity</th><td style='font-weight:700'>${form.tonnes?(+form.tonnes*1000).toFixed(0)+' kg':'—'}</td><th>Moisture</th><td>${form.moisture?form.moisture+'%':'—'}</td></tr><tr><th>Truck Plate</th><td>${form.truckPlate||'—'}</td><th>Driver</th><td>${form.driverName||'—'}</td></tr><tr><th>Seal Number</th><td>${form.sealNumber||'—'}</td><th>GNR Refs</th><td>${form.gnrRefs||'—'}</td></tr>${form.notes?'<tr><th>Notes</th><td colspan=3>'+form.notes+'</td></tr>':''}</table><div class='sig'><div class='sig-b'><div style='height:48px'></div><b>Prepared By</b><br>${u.name}</div><div class='sig-b'><div style='height:48px'></div><b>Received By</b><br>Name &amp; Stamp</div><div class='sig-b'><div style='height:48px'></div><b>Authorized By</b><br>MD / Warehouse</div></div><div style='margin-top:24px;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px;text-align:center'>Generated by Bender Exports IOS · ${new Date().toLocaleString()} · ${dnNo}</div><div class='np' style='margin-top:16px;text-align:center'><button onclick='window.print()' style='padding:10px 28px;background:#C8A84B;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Print Delivery Note</button></div></body></html>`);
+      w.document.close();
+    } catch(_) {}
+    //addNote_orig(`Shipment saved — Delivery Note ${dnNo} generated`,"success");
+    // Print delivery note
+    const w = window.open("","_blank","width=800,height=900");
+    if (!w) return;
+    w.document.write(`<html><head><title>Delivery Note ${dnNo}</title>
+    <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;max-width:750px;margin:0 auto}
+    h1{font-size:20px;font-weight:800;margin:0 0 4px}.dn{font-size:14px;font-weight:700;color:#8B6914;border:2px solid #C8A84B;padding:5px 14px;border-radius:8px;display:inline-block;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}td,th{padding:8px 10px;border:1px solid #ddd;font-size:13px}th{background:#f5f0e8;font-weight:700;text-align:left;width:160px}
+    .sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:36px}.sb{border-top:1.5px solid #333;padding-top:8px;font-size:11px}
+    @media print{.np{display:none}}</style></head><body>
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+      <div><h1>Bender Exports Ltd.</h1><div style="color:#555;font-size:12px">Delivery Note</div></div>
+      <div style="text-align:right"><div class="dn">${dnNo}</div><div style="font-size:11px;color:#555">Date: ${today()}</div></div>
+    </div>
+    <table>
+      <tr><th>From Station</th><td>${cws?.name||""}</td><th>Destination</th><td>${(form.destination||"Warehouse").replace(/\w/g,l=>l.toUpperCase())}</td></tr>
+      <tr><th>Grade</th><td>${form.grade}</td><th>Lot Number</th><td>${form.lotNumber||"—"}</td></tr>
+      <tr><th>N° of Sacs</th><td style="font-weight:700">${form.numSacs||"—"}</td><th>Kg / Sac</th><td>${form.kgPerSac||60} kg</td></tr>
+      <tr><th>Total Quantity</th><td style="font-weight:700">${form.tonnes?(+form.tonnes*1000).toFixed(0)+" kg":"—"}</td><th>Moisture</th><td>${form.moisture?form.moisture+"%":"—"}</td></tr>
+      <tr><th>Truck Plate</th><td>${form.truckPlate||"—"}</td><th>Driver</th><td>${form.driverName||"—"}</td></tr>
+      <tr><th>Seal Number</th><td>${form.sealNumber||"—"}</td><th>Prepared By</th><td>${u.name}</td></tr>
+      ${form.notes?`<tr><th>Notes</th><td colspan="3">${form.notes}</td></tr>`:""}
+    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:32px">
+      <div class="sb"><div style="height:44px"></div><div style="font-weight:700;font-size:10px;text-transform:uppercase">Prepared By</div><div>${u.name}</div></div>
+      <div class="sb"><div style="height:44px"></div><div style="font-weight:700;font-size:10px;text-transform:uppercase">Received By</div><div>Name &amp; Stamp</div></div>
+      <div class="sb"><div style="height:44px"></div><div style="font-weight:700;font-size:10px;text-transform:uppercase">Authorized By</div><div>MD / Warehouse Mgr</div></div>
+    </div>
+    <div style="margin-top:24px;text-align:center" class="np">
+      <button onclick="window.print()" style="padding:9px 24px;background:#C8A84B;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print</button>
+    </div></body></html>`);
+    w.document.close();
+  };
+
   const TabDNReport = () => {
     const [filterCws, setFilterCws] = useState("all");
-    const ships = filterCws === "all" ? warehouseStock : warehouseStock.filter(w => w.fromCwsId === filterCws);
-
-    // Group by CWS
+    const ships = filterCws==="all" ? warehouseStock : warehouseStock.filter(w=>w.fromCwsId===filterCws);
     const byCws = cwsList.map(cws => {
-      const rows = warehouseStock.filter(w => w.fromCwsId === cws.id);
+      const rows = warehouseStock.filter(w=>w.fromCwsId===cws.id);
       if (!rows.length) return null;
-
-      // Grade totals
       const grades = {};
       rows.forEach(w => {
-        const g = w.grade || "Unknown";
-        if (!grades[g]) grades[g] = { numSacs: 0, totalKg: 0 };
-        grades[g].numSacs += +w.numSacs || 0;
-        grades[g].totalKg += w.tonnes ? +w.tonnes * 1000 : (+w.numSacs||0) * (+w.kgPerSac||60);
+        const g = w.grade||"Unknown";
+        if (!grades[g]) grades[g]={numSacs:0,totalKg:0};
+        grades[g].numSacs  += +w.numSacs||0;
+        grades[g].totalKg  += w.tonnes?(+w.tonnes*1000):(+w.numSacs||0)*(+w.kgPerSac||60);
       });
-
-      // Total parchment delivered
-      const totalKg = Object.values(grades).reduce((s,g) => s + g.totalKg, 0);
-      const totalSacs = Object.values(grades).reduce((s,g) => s + g.numSacs, 0);
-
-      // Total cherry received from cherry intake
-      const cherryKg = (cherry||[])
-        .filter(c => c.cwsId === cws.id)
-        .reduce((s,c) => s + (+c.standardKg||0) + (+c.flotantKg||0), 0);
-
-      // Outturn = parchment kg / cherry kg * 100
-      const outturn = cherryKg > 0 ? (totalKg / cherryKg * 100).toFixed(2) : null;
-
-      return { cws, rows, grades, totalKg, totalSacs, cherryKg, outturn };
+      const totalKg   = Object.values(grades).reduce((s,g)=>s+g.totalKg,0);
+      const totalSacs = Object.values(grades).reduce((s,g)=>s+g.numSacs,0);
+      const cherryKg  = (cherry||[]).filter(c=>c.cwsId===cws.id).reduce((s,c)=>s+(+c.standardKg||0)+(+c.flotantKg||0),0);
+      const outturn   = cherryKg>0?(totalKg/cherryKg*100).toFixed(2):null;
+      return {cws,rows,grades,totalKg,totalSacs,cherryKg,outturn};
     }).filter(Boolean);
 
     return <div>
-      {/* Filter */}
-      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        <div style={{ fontSize:13, fontWeight:700, color:C.text }}>Delivery Notes Report + Outturn</div>
-        <select value={filterCws} onChange={e=>setFilterCws(e.target.value)} style={{ ...selS(), width:"auto", marginLeft:"auto" }}>
+      <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.text}}>Delivery Notes Report + Outturn</div>
+        <select value={filterCws} onChange={e=>setFilterCws(e.target.value)} style={{...selS(),width:"auto",marginLeft:"auto"}}>
           <option value="all">All Stations</option>
           {cwsList.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
-
-      {byCws.filter(b => filterCws === "all" || b.cws.id === filterCws).map(({ cws, rows, grades, totalKg, totalSacs, cherryKg, outturn }) => <div key={cws.id} style={{ background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:14, padding:"18px 20px", marginBottom:20 }}>
-
-        {/* Station header */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, flexWrap:"wrap", gap:10 }}>
-          <div>
-            <div style={{ fontSize:15, fontWeight:800, color:C.gold }}>{cws.name}</div>
-            <div style={{ fontSize:11, color:C.textMuted }}>Report of Delivery Notes</div>
+      {byCws.filter(b=>filterCws==="all"||b.cws.id===filterCws).map(({cws,rows,grades,totalKg,totalSacs,cherryKg,outturn})=>(
+        <div key={cws.id} style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"18px 20px",marginBottom:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,color:C.gold}}>{cws.name}</div>
+              <div style={{fontSize:11,color:C.textMuted}}>Delivery Notes Report</div>
+            </div>
+            {outturn && <div style={{background:`${C.info}15`,border:`1px solid ${C.info}30`,borderRadius:10,padding:"8px 14px",textAlign:"center"}}>
+              <div style={{fontSize:20,fontWeight:800,color:C.info}}>{outturn}%</div>
+              <div style={{fontSize:9,color:C.textDim,textTransform:"uppercase"}}>Outturn / Rendement</div>
+            </div>}
           </div>
-          {outturn && <div style={{ background:`${C.info}15`, border:`1px solid ${C.info}30`, borderRadius:10, padding:"8px 16px", textAlign:"center" }}>
-            <div style={{ fontSize:20, fontWeight:800, color:C.info }}>{outturn}%</div>
-            <div style={{ fontSize:9, color:C.textDim, textTransform:"uppercase", letterSpacing:"0.6px" }}>Outturn / Rendement</div>
-          </div>}
-        </div>
-
-        {/* Delivery notes table */}
-        <div style={{ overflowX:"auto", marginBottom:16 }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-            <thead><tr style={{ background:C.bgDeep }}>
-              {["Date","DN #","Grade","N° of Sacs Delivered","Qty/Sac (kg)","Total Quantity (kg)","Destination","Status"].map(h=><th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:C.textMuted, fontSize:10, textTransform:"uppercase", letterSpacing:"0.6px", borderBottom:`1px solid ${C.border}`, whiteSpace:"nowrap" }}>{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {rows.map((w,i) => {
-                const kg = w.tonnes ? +w.tonnes*1000 : (+w.numSacs||0)*(+w.kgPerSac||60);
-                return <tr key={w.id} style={{ borderBottom:`1px solid ${C.border}10` }}>
-                  <td style={{ padding:"7px 10px", color:C.textMuted }}>{w.date}</td>
-                  <td style={{ padding:"7px 10px", color:C.gold, fontWeight:700, fontSize:10 }}>{w.deliveryNoteNo||"—"}</td>
-                  <td style={{ padding:"7px 10px", fontWeight:600, color:C.text }}>{w.grade}</td>
-                  <td style={{ padding:"7px 10px", textAlign:"center", fontWeight:700 }}>{w.numSacs||"—"}</td>
-                  <td style={{ padding:"7px 10px", textAlign:"center" }}>{w.kgPerSac||60}</td>
-                  <td style={{ padding:"7px 10px", textAlign:"right", fontWeight:700, color:C.info }}>{kg.toLocaleString()}</td>
-                  <td style={{ padding:"7px 10px", color:C.textMuted, fontSize:11 }}>{(w.destination||"warehouse").replace(/_/g," ")}</td>
-                  <td style={{ padding:"7px 10px" }}><SB status={w.status} /></td>
-                </tr>;
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{ background:`${C.gold}10`, borderTop:`2px solid ${C.gold}40` }}>
-                <td colSpan={3} style={{ padding:"9px 10px", fontWeight:800, color:C.text }}>TOTAL Parchment Delivered</td>
-                <td style={{ padding:"9px 10px", textAlign:"center", fontWeight:800, color:C.gold }}>{totalSacs}</td>
-                <td />
-                <td style={{ padding:"9px 10px", textAlign:"right", fontWeight:800, color:C.gold }}>{totalKg.toLocaleString()} kg</td>
-                <td colSpan={2} />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* Grade summary (like the Percentages sheet) */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-          <div>
-            <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>Grade Summary</div>
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-              <thead><tr style={{ background:C.bgDeep }}>
-                {["Grade","Sacs","Total Kg","%"].map(h=><th key={h} style={{ padding:"6px 8px", textAlign:"left", fontWeight:700, color:C.textMuted, fontSize:10, borderBottom:`1px solid ${C.border}` }}>{h}</th>)}
+          <div style={{overflowX:"auto",marginBottom:14}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr style={{background:C.bgDeep}}>
+                {["Date","DN #","Grade","N° Sacs","Kg/Sac","Total Kg","Destination","Status"].map(h=><th key={h} style={{padding:"7px 10px",textAlign:"left",fontWeight:700,color:C.textMuted,fontSize:10,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {Object.entries(grades).map(([grade, g]) => <tr key={grade} style={{ borderBottom:`1px solid ${C.border}10` }}>
-                  <td style={{ padding:"6px 8px", fontWeight:600 }}>{grade}</td>
-                  <td style={{ padding:"6px 8px", textAlign:"center" }}>{g.numSacs}</td>
-                  <td style={{ padding:"6px 8px", textAlign:"right", fontWeight:700, color:C.info }}>{g.totalKg.toLocaleString()}</td>
-                  <td style={{ padding:"6px 8px", textAlign:"right", color:C.gold, fontWeight:700 }}>{totalKg > 0 ? (g.totalKg/totalKg*100).toFixed(1)+"%" : "—"}</td>
-                </tr>)}
+                {rows.map(w=>{
+                  const kg=w.tonnes?(+w.tonnes*1000).toFixed(0):(+w.numSacs||0)*(+w.kgPerSac||60);
+                  return <tr key={w.id} style={{borderBottom:`1px solid ${C.border}10`}}>
+                    <td style={{padding:"7px 10px",color:C.textMuted}}>{w.date}</td>
+                    <td style={{padding:"7px 10px",color:C.gold,fontWeight:700,fontSize:10}}>{w.deliveryNoteNo||"—"}</td>
+                    <td style={{padding:"7px 10px",fontWeight:600}}>{w.grade}</td>
+                    <td style={{padding:"7px 10px",textAlign:"center",fontWeight:700}}>{w.numSacs||"—"}</td>
+                    <td style={{padding:"7px 10px",textAlign:"center"}}>{w.kgPerSac||60}</td>
+                    <td style={{padding:"7px 10px",textAlign:"right",fontWeight:700,color:C.info}}>{(+kg).toLocaleString()}</td>
+                    <td style={{padding:"7px 10px",color:C.textMuted,fontSize:11,textTransform:"capitalize"}}>{(w.destination||"warehouse").replace(/_/g," ")}</td>
+                    <td style={{padding:"7px 10px"}}><SB status={w.status}/></td>
+                  </tr>;
+                })}
               </tbody>
-              <tfoot>
-                <tr style={{ background:`${C.gold}10` }}>
-                  <td style={{ padding:"6px 8px", fontWeight:800 }}>TOTAL</td>
-                  <td style={{ padding:"6px 8px", textAlign:"center", fontWeight:800 }}>{totalSacs}</td>
-                  <td style={{ padding:"6px 8px", textAlign:"right", fontWeight:800, color:C.gold }}>{totalKg.toLocaleString()}</td>
-                  <td style={{ padding:"6px 8px", textAlign:"right", fontWeight:800 }}>100%</td>
-                </tr>
-              </tfoot>
+              <tfoot><tr style={{background:`${C.gold}10`,borderTop:`2px solid ${C.gold}40`}}>
+                <td colSpan={3} style={{padding:"8px 10px",fontWeight:800}}>TOTAL</td>
+                <td style={{padding:"8px 10px",textAlign:"center",fontWeight:800,color:C.gold}}>{totalSacs}</td>
+                <td/>
+                <td style={{padding:"8px 10px",textAlign:"right",fontWeight:800,color:C.gold}}>{totalKg.toLocaleString()} kg</td>
+                <td colSpan={2}/>
+              </tr></tfoot>
             </table>
           </div>
-
-          {/* Outturn card */}
-          <div>
-            <div style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>Outturn (Rendement)</div>
-            <div style={{ background:C.bgDeep, borderRadius:10, padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
-              <div style={{ display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontSize:12, color:C.textMuted }}>Total Parchment Delivered</span>
-                <span style={{ fontWeight:700, color:C.info }}>{totalKg.toLocaleString()} kg</span>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>Grade Summary</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:C.bgDeep}}>{["Grade","Sacs","Total Kg","%"].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:C.textMuted,fontSize:10,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
+                <tbody>{Object.entries(grades).map(([grade,g])=><tr key={grade} style={{borderBottom:`1px solid ${C.border}10`}}>
+                  <td style={{padding:"6px 8px",fontWeight:600}}>{grade}</td>
+                  <td style={{padding:"6px 8px",textAlign:"center"}}>{g.numSacs}</td>
+                  <td style={{padding:"6px 8px",textAlign:"right",fontWeight:700,color:C.info}}>{g.totalKg.toLocaleString()}</td>
+                  <td style={{padding:"6px 8px",textAlign:"right",color:C.gold,fontWeight:700}}>{totalKg>0?(g.totalKg/totalKg*100).toFixed(1)+"%":"—"}</td>
+                </tr>)}</tbody>
+                <tfoot><tr style={{background:`${C.gold}10`}}>
+                  <td style={{padding:"6px 8px",fontWeight:800}}>TOTAL</td>
+                  <td style={{padding:"6px 8px",textAlign:"center",fontWeight:800}}>{totalSacs}</td>
+                  <td style={{padding:"6px 8px",textAlign:"right",fontWeight:800,color:C.gold}}>{totalKg.toLocaleString()}</td>
+                  <td style={{padding:"6px 8px",textAlign:"right",fontWeight:800}}>100%</td>
+                </tr></tfoot>
+              </table>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>Outturn / Rendement</div>
+              <div style={{background:C.bgDeep,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:C.textMuted}}>Parchment Delivered</span><span style={{fontWeight:700,color:C.info}}>{totalKg.toLocaleString()} kg</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:C.textMuted}}>Cherry Received</span><span style={{fontWeight:700,color:C.gold}}>{cherryKg.toLocaleString()} kg</span></div>
+                <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:13,fontWeight:700,color:C.text}}>Outturn</span>
+                  <span style={{fontSize:22,fontWeight:800,color:outturn&&+outturn>=18?C.success:outturn?C.warning:C.textDim}}>{outturn?outturn+"%":"No cherry data"}</span>
+                </div>
+                {outturn&&<div style={{fontSize:10,color:C.textDim}}>Industry benchmark: 18–22% Arabica parchment</div>}
               </div>
-              <div style={{ display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontSize:12, color:C.textMuted }}>Total Cherry Received</span>
-                <span style={{ fontWeight:700, color:C.coffee||C.gold }}>{cherryKg.toLocaleString()} kg</span>
-              </div>
-              <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span style={{ fontSize:13, fontWeight:700, color:C.text }}>Outturn / Rendement</span>
-                <span style={{ fontSize:22, fontWeight:800, color: outturn && +outturn >= 18 ? C.success : outturn ? C.warning : C.textDim }}>
-                  {outturn ? outturn+"%" : "No cherry data"}
-                </span>
-              </div>
-              {outturn && <div style={{ fontSize:10, color:C.textDim }}>Industry benchmark: 18–22% for Arabica parchment</div>}
             </div>
           </div>
         </div>
-      </div>)}
-
-      {byCws.length === 0 && <div style={{ textAlign:"center", padding:"40px 20px", color:C.textDim, fontSize:13 }}>No delivery notes yet. Create a shipment to generate the first delivery note.</div>}
+      ))}
+      {byCws.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:C.textDim,fontSize:13}}>No delivery notes yet.</div>}
     </div>;
   };
 
@@ -3953,72 +3580,17 @@ function WarehousePage() {
     {tab === "dn_report"  && <TabDNReport warehouseStock={warehouseStock} cwsList={cwsList} cherry={cherry} />}
 
     {/* Legacy shipment form */}
-    {showForm && <Modal title="New Shipment + Delivery Note" onClose={() => setShowForm(false)} wide>
-      <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:10 }}>📦 Shipment Details</div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12, marginBottom:16 }}>
+    {showForm && <Modal title="Send Stock to Warehouse" onClose={() => setShowForm(false)} wide>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12 }}>
         <div><FL>From Station</FL><select value={form.fromCwsId} onChange={e=>setForm(p=>({...p,fromCwsId:e.target.value}))} style={selS()}><option value="">— Select —</option>{cwsList.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-        <div><FL>Destination</FL><select value={form.destination||"warehouse"} onChange={e=>setForm(p=>({...p,destination:e.target.value}))} style={selS()}>
-          <option value="warehouse">Warehouse</option>
-          <option value="export">Export / Port</option>
-          <option value="processing">Processing Plant</option>
-          <option value="other">Other</option>
-        </select></div>
-        <div><FL>Grade</FL><select value={form.grade} onChange={e=>setForm(p=>({...p,grade:e.target.value}))} style={selS()}>
-          <option>A1 Full Washed</option>
-          <option>A2 Full Washed</option>
-          <option>A2 Trie</option>
-          <option>A3</option>
-          <option>Parchment</option>
-        </select></div>
-        <div>
-          <FL>Number of Sacks</FL>
-          <input type="number" min="0" placeholder="e.g. 70"
-            value={form.numSacs||""}
-            onChange={e => setForm(p => { const n=e.target.value; const t=n&&p.kgPerSac?String(+n * +p.kgPerSac):""; return {...p,numSacs:n,totalKg:t}; })}
-            style={{ width:"100%", padding:"9px 12px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none" }} />
-        </div>
-        <div>
-          <FL>Kg per Sack</FL>
-          <input type="number" min="0" placeholder="60"
-            value={form.kgPerSac||""}
-            onChange={e => setForm(p => { const k=e.target.value; const t=k&&p.numSacs?String(+p.numSacs * +k):""; return {...p,kgPerSac:k,totalKg:t}; })}
-            style={{ width:"100%", padding:"9px 12px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none" }} />
-        </div>
-        <div>
-          <FL>Total Quantity (kg)</FL>
-          <input type="number" min="0" placeholder="auto-calculated"
-            value={form.totalKg||""}
-            onChange={e => setForm(p => ({...p,totalKg:e.target.value}))}
-            style={{ width:"100%", padding:"9px 12px", background:`${C.gold}12`, border:`1.5px solid ${C.gold}50`, borderRadius:9, color:C.gold, fontSize:14, fontWeight:700, outline:"none" }} />
-        </div>
-        <FI label="Lot Number"     value={form.lotNumber}        onChange={v=>setForm(p=>({...p,lotNumber:v}))}        placeholder="LOT-XXX-001" />
-        <FI label="GNR References" value={form.gnrRefs}          onChange={v=>setForm(p=>({...p,gnrRefs:v}))}          placeholder="GNR-MSZ-0001, ..." />
-        <FI label="Truck Plate"    value={form.truckPlate||""}   onChange={v=>setForm(p=>({...p,truckPlate:v}))}       placeholder="RAC 123 A" />
-        <FI label="Driver Name"    value={form.driverName||""}   onChange={v=>setForm(p=>({...p,driverName:v}))}       placeholder="Driver full name" />
-        <FI label="Seal Number"    value={form.sealNumber||""}   onChange={v=>setForm(p=>({...p,sealNumber:v}))}       placeholder="Seal / Lock No." />
-        <FI label="Cherry Received at Station (kg)" type="number" value={form.cherryReceivedKg||""} onChange={v=>setForm(p=>({...p,cherryReceivedKg:v}))} placeholder="Total cherry kg (for rendement)" />
+        <div><FL>Grade</FL><select value={form.grade} onChange={e=>setForm(p=>({...p,grade:e.target.value}))} style={selS()}><option>Parchment</option><option>Green</option></select></div>
+        <FI label="Tonnes" type="number" value={form.tonnes} onChange={v=>setForm(p=>({...p,tonnes:v}))} placeholder="e.g. 2.5" />
+        <FI label="Lot Number" value={form.lotNumber} onChange={v=>setForm(p=>({...p,lotNumber:v}))} placeholder="LOT-XXX-001" />
+        <FI label="GNR References" value={form.gnrRefs} onChange={v=>setForm(p=>({...p,gnrRefs:v}))} placeholder="GNR-MSZ-0001" />
+        <FI label="Transport Details" value={form.transportDetails} onChange={v=>setForm(p=>({...p,transportDetails:v}))} placeholder="Truck plate RAC..." />
       </div>
-      <div style={{ fontSize:11, fontWeight:700, color:C.info, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:10 }}>📋 Outturn / Rendement</div>
-      <div style={{ background:C.bgDeep, borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:10 }}>
-          <FI label="A1 Full Washed (%)" type="number" value={form.outA1||""} onChange={v=>setForm(p=>({...p,outA1:v}))} placeholder="%" />
-          <FI label="A2 Full Washed (%)" type="number" value={form.outA2||""} onChange={v=>setForm(p=>({...p,outA2:v}))} placeholder="%" />
-          <FI label="A2 Trie (%)"        type="number" value={form.outTriage||""} onChange={v=>setForm(p=>({...p,outTriage:v}))} placeholder="%" />
-          <FI label="A3 (%)"             type="number" value={form.outA3||""} onChange={v=>setForm(p=>({...p,outA3:v}))} placeholder="%" />
-          <FI label="Moisture (%)"       type="number" value={form.moisture||""} onChange={v=>setForm(p=>({...p,moisture:v}))} placeholder="e.g. 11.5" />
-          <FI label="Screen Size"        value={form.screenSize||""} onChange={v=>setForm(p=>({...p,screenSize:v}))} placeholder="e.g. 15+" />
-        </div>
-        {form.cherryReceivedKg && form.totalKg && <div style={{ background:`${C.success}12`, border:`1px solid ${C.success}30`, borderRadius:8, padding:"10px 14px", display:"flex", gap:20, flexWrap:"wrap" }}>
-          <div><div style={{ fontSize:10, color:C.textMuted, textTransform:"uppercase" }}>Rendement</div>
-            <div style={{ fontSize:20, fontWeight:800, color:C.success }}>{((+form.totalKg / +form.cherryReceivedKg)*100).toFixed(2)}%</div></div>
-          <div><div style={{ fontSize:10, color:C.textMuted, textTransform:"uppercase" }}>Parchment</div>
-            <div style={{ fontSize:16, fontWeight:700, color:C.gold }}>{(+form.totalKg).toLocaleString()} kg</div></div>
-          <div><div style={{ fontSize:10, color:C.textMuted, textTransform:"uppercase" }}>Cherry</div>
-            <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{(+form.cherryReceivedKg).toLocaleString()} kg</div></div>
-        </div>}
-      </div>
-      <FI label="Notes / Remarks" value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="Optional remarks..." />
-      <MF onCancel={() => setShowForm(false)} onSave={sendShipment} label="💾 Save Shipment + Generate Delivery Note" color={C.gold} />
+      <div style={{ marginTop:12 }}><FI label="Notes" value={form.notes} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="Optional" /></div>
+      <MF onCancel={() => setShowForm(false)} onSave={sendShipment} label="Send to Warehouse" color={C.gold} />
     </Modal>}
 
     {/* Movement form */}
@@ -4071,7 +3643,6 @@ function FieldRequisitionPage() {
       reason: form.purpose,
     };
     setFundRequests(p => [rec, ...p]);
-    syncToServer("fund_requests", [rec]).catch(() => {});
     addNote("Field requisition submitted — awaiting Finance approval", "success");
     setForm(emptyForm);
     setTab("list");
@@ -4079,13 +3650,10 @@ function FieldRequisitionPage() {
 
   // ── Finance approves ─────────────────────────────────────────────
   const doApprove = (id) => {
-    setFundRequests(p => p.map(f => {
-      if (f.id !== id) return f;
-      const updated = { ...f, status: "pending_md_release",
-        financeApprovedBy: u.id, financeApprovedAt: new Date().toLocaleString(), financeNotes: approveNotes };
-      syncToServer("fund_requests", [updated]).catch(() => {});
-      return updated;
-    }));
+    setFundRequests(p => p.map(f => f.id === id ? {
+      ...f, status: "pending_md_release",
+      financeApprovedBy: u.id, financeApprovedAt: new Date().toLocaleString(), financeNotes: approveNotes
+    } : f));
     setApproveModal(null); setApproveNotes("");
     addNote("Requisition approved by Finance — forwarded to MD for cheque release", "success");
   };
@@ -4093,27 +3661,19 @@ function FieldRequisitionPage() {
   // ── MD releases cheque ───────────────────────────────────────────
   const doRelease = (id) => {
     if (!releaseForm.chequeNo || !releaseForm.amount) { return addNote("Enter cheque number and amount", "warning"); }
-    setFundRequests(p => p.map(f => {
-      if (f.id !== id) return f;
-      const updated = { ...f, status: "cheque_released",
-        chequeReleasedBy: u.id, chequeReleasedAt: new Date().toLocaleString(),
-        chequeNo: releaseForm.chequeNo, amount: parseFloat(releaseForm.amount)||f.amount,
-        releaseMethod: releaseForm.method, releaseNotes: releaseForm.notes };
-      syncToServer("fund_requests", [updated]).catch(() => {});
-      return updated;
-    }));
+    setFundRequests(p => p.map(f => f.id === id ? {
+      ...f, status: "cheque_released",
+      chequeReleasedBy: u.id, chequeReleasedAt: new Date().toLocaleString(),
+      chequeNo: releaseForm.chequeNo, amount: parseFloat(releaseForm.amount)||f.amount,
+      releaseMethod: releaseForm.method, releaseNotes: releaseForm.notes
+    } : f));
     setReleaseModal(null); setReleaseForm({ chequeNo:"", amount:"", method:"cheque", notes:"" });
     addNote("Cheque released — requisition complete", "success");
   };
 
   // ── Reject ───────────────────────────────────────────────────────
   const doReject = (id) => {
-    setFundRequests(p => p.map(f => {
-      if (f.id !== id) return f;
-      const updated = { ...f, status: "rejected", financeNotes: rejectNotes };
-      syncToServer("fund_requests", [updated]).catch(() => {});
-      return updated;
-    }));
+    setFundRequests(p => p.map(f => f.id === id ? { ...f, status: "rejected", financeNotes: rejectNotes } : f));
     setRejectModal(null); setRejectNotes("");
     addNote("Requisition rejected", "warning");
   };
@@ -5943,8 +5503,6 @@ function LoansPage() {
     </div>
   );
 }
-
-function ReportsPage() {
   const { cherry, expenses, cashbook, bankTx, stock, debts, cwsList,
           machTx, fundRequests, farmers: farmers2, users, seasons } = useApp();
 
@@ -6655,6 +6213,12 @@ function ReportsPage() {
   </div>;
 }
 
+
+function ReportsPage() {
+  const { cherry, expenses, cashbook, bankTx, stock, debts, cwsList, machTx, fundRequests, farmers: farmers2, users, seasons } = useApp();
+
+  return <div>Reports</div>;
+}
 
 function MachineryPage() {
   const { currentUser: u, machines, setMachines, tasks, setTasks, machTx, setMachTx, driverLogs, leaves, setLeaves, users, setUsers, assistants, setAssistants, online, pending, setPending, addNote } = useApp();
@@ -7863,6 +7427,606 @@ function Th({ children }) {
 /* ── Table Data Cell ── */
 function Td({ children, style }) {
   return <td style={{ padding: "10px 12px", fontSize: 12.5, borderBottom: `1px solid ${C.border}08`, ...style }}>{children}</td>;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// FIELD FUND REQUESTS PAGE — HQ staff fill structured fund request form
+// Workflow: draft → submitted → finance_approved → approved (MD)
+// ═══════════════════════════════════════════════════════════════════
+function FieldRequestsPage() {
+  const { currentUser: u, syncToServer, addNote } = useApp();
+  const [requests, setRequests] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("field_requests")||"[]"); } catch { return []; }
+  });
+  const [view, setView]     = useState("list");
+  const [editing, setEditing] = useState(null);
+  const [filter, setFilter] = useState("all");
+
+  const save = async (rec) => {
+    const isNew = !requests.find(r=>r.id===rec.id);
+    const updated = isNew ? [rec,...requests] : requests.map(r=>r.id===rec.id?rec:r);
+    setRequests(updated);
+    try { localStorage.setItem("field_requests", JSON.stringify(updated)); } catch(_) {}
+    try { await syncToServer("fund_requests", [rec]); } catch(_) {}
+    addNote(isNew?"✓ Field request saved":"✓ Field request updated","success");
+    setView("list"); setEditing(null);
+  };
+
+  const updateStatus = async (id, status) => {
+    const rec = requests.find(r=>r.id===id);
+    if (!rec) return;
+    const updated = { ...rec, status, updatedAt: new Date().toISOString(),
+      ...(status==="finance_approved"?{financeApprovedBy:u.name,financeApprovedAt:new Date().toISOString()}:{}),
+      ...(status==="approved"?{approvedBy:u.name,approvedAt:new Date().toISOString()}:{}),
+      ...(status==="rejected"?{rejectedBy:u.name,rejectedAt:new Date().toISOString()}:{}),
+    };
+    await save(updated);
+  };
+
+  const canFinanceApprove = ["sudo","md","hq_finance","hq_accountant"].includes(u.role);
+  const canMdApprove      = ["sudo","md"].includes(u.role);
+  const filtered = filter==="all" ? requests : requests.filter(r=>r.status===filter);
+
+  const badgeStyle = (status) => ({
+    display:"inline-block", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:700, textTransform:"uppercase",
+    background: status==="approved"?`${C.success}20`:status==="rejected"?`${C.danger}20`:status==="finance_approved"?`${C.info}20`:status==="submitted"?`${C.gold}20`:`${C.border}40`,
+    color: status==="approved"?C.success:status==="rejected"?C.danger:status==="finance_approved"?C.info:status==="submitted"?C.gold:C.textDim,
+  });
+
+  const statusLabel = s => ({draft:"Draft",submitted:"Awaiting Finance",finance_approved:"Finance Approved — Awaiting MD",approved:"Approved by MD",rejected:"Rejected"}[s]||s);
+
+  if (view==="form") return <FRForm initial={editing} currentUser={u} onSave={save} onCancel={()=>{setView("list");setEditing(null);}} />;
+  if (view==="detail"&&editing) return <FRDetail req={editing} currentUser={u} canFinanceApprove={canFinanceApprove} canMdApprove={canMdApprove}
+    badgeStyle={badgeStyle} statusLabel={statusLabel}
+    onBack={()=>{setView("list");setEditing(null);}} onEdit={()=>setView("form")}
+    onFinanceApprove={()=>updateStatus(editing.id,"finance_approved")}
+    onApprove={()=>updateStatus(editing.id,"approved")}
+    onReject={()=>updateStatus(editing.id,"rejected")}
+    onSubmit={()=>updateStatus(editing.id,"submitted")} />;
+
+  return <div style={{maxWidth:900}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:10}}>
+      <div><div style={{fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.4px"}}>📋 Field Fund Requests</div>
+        <div style={{fontSize:13,color:C.textMuted,marginTop:2}}>HQ fund request forms with finance → MD approval workflow</div></div>
+      <button onClick={()=>{setEditing(null);setView("form");}} style={{...BtnS(C.gold),padding:"9px 18px",fontSize:13,fontWeight:600}}>+ New Request</button>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:10,marginBottom:20}}>
+      {["all","draft","submitted","finance_approved","approved","rejected"].map(s=>{
+        const count=s==="all"?requests.length:requests.filter(r=>r.status===s).length;
+        return <div key={s} onClick={()=>setFilter(s)} style={{padding:"10px 12px",background:filter===s?`${C.gold}15`:C.bgDeep,border:`1.5px solid ${filter===s?C.gold:C.border}`,borderRadius:10,cursor:"pointer",textAlign:"center"}}>
+          <div style={{fontSize:18,fontWeight:700,color:filter===s?C.gold:C.text}}>{count}</div>
+          <div style={{fontSize:9,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.5px",marginTop:2}}>{{finance_approved:"Fin.Approved"}[s]||s}</div>
+        </div>;
+      })}
+    </div>
+    {filtered.length===0?<div style={{textAlign:"center",padding:"40px 20px",color:C.textDim,fontSize:13}}>No {filter==="all"?"":filter+" "}requests yet.</div>
+    :filtered.map(req=><div key={req.id} style={{background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:14,fontWeight:700,color:C.text}}>{req.projectName||"Untitled"}</span>
+            <span style={badgeStyle(req.status)}>{statusLabel(req.status)}</span>
+          </div>
+          <div style={{fontSize:11,color:C.textMuted,marginTop:4}}>
+            {req.requestNo&&<span style={{marginRight:10}}>#{req.requestNo}</span>}
+            <span style={{marginRight:10}}>📍 {req.location||"—"}</span>
+            <span style={{marginRight:10}}>👤 {req.requestedBy||"—"}</span>
+            <span>📅 {req.date||"—"}</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.gold}}>{(req.items||[]).reduce((s,i)=>s+(+i.totalCost||0),0).toLocaleString()} RWF</div>
+          <button onClick={()=>{setEditing(req);setView("detail");}} style={{...BtnS(C.border,true),fontSize:11,padding:"5px 12px"}}>View</button>
+          {req.status==="draft"&&<button onClick={()=>{setEditing(req);setView("form");}} style={{...BtnS(C.info,true),fontSize:11,padding:"5px 12px"}}>Edit</button>}
+        </div>
+      </div>
+    </div>)}
+  </div>;
+}
+
+function FRForm({ initial, currentUser: u, onSave, onCancel }) {
+  const emptyItem = () => ({ item:"", quantity:"", unitCost:"", totalCost:"" });
+  const [form, setForm] = useState(initial||{id:uid(),date:today(),requestNo:`FFR-${Date.now().toString().slice(-6)}`,projectName:"",location:"",requestedBy:u?.name||"",position:u?.role||"",phone:"",purpose:"",activityDescription:"",reasonForRequest:"",expectedResult:"",startDate:"",endDate:"",teamInvolved:"",transportNeeded:"",preparedBy:u?.name||"",preparedByPosition:u?.role||"",approvedBy:"",approvedByPosition:"",finance:"",status:"draft",items:[emptyItem(),emptyItem(),emptyItem()],createdAt:new Date().toISOString()});
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  const setItem = (i,k,v) => {
+    const items = form.items.map((item,idx)=>{
+      if(idx!==i) return item;
+      const u2={...item,[k]:v};
+      if(k==="quantity"||k==="unitCost") u2.totalCost=((+(k==="quantity"?v:item.quantity)||0)*(+(k==="unitCost"?v:item.unitCost)||0)).toString();
+      return u2;
+    });
+    setForm(p=>({...p,items}));
+  };
+  const total = form.items.reduce((s,i)=>s+(+i.totalCost||0),0);
+  const inp={width:"100%",padding:"8px 11px",background:C.bgDeep,border:`1.5px solid ${C.border}`,borderRadius:9,color:C.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none"};
+  const lbl={fontSize:11,fontWeight:600,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:5,display:"block"};
+  const fld=(label,key,type="text",ph="")=><div><label style={lbl}>{label}</label>{type==="textarea"?<textarea value={form[key]||""} onChange={e=>set(key,e.target.value)} rows={3} style={{...inp,resize:"vertical"}} placeholder={ph}/>:<input type={type} value={form[key]||""} onChange={e=>set(key,e.target.value)} style={inp} placeholder={ph}/>}</div>;
+  const card={background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:14};
+
+  return <div style={{maxWidth:860}}>
+    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
+      <button onClick={onCancel} style={{...BtnS(C.border,true),fontSize:12,padding:"6px 14px"}}>← Back</button>
+      <div style={{fontSize:18,fontWeight:700,color:C.text}}>📋 Field Fund Request Form</div>
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>① Basic Info &amp; Purpose</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {fld("Date","date","date")} {fld("Request No","requestNo")}
+        {fld("Project / Activity","projectName")} {fld("Location","location")}
+        {fld("Requested By","requestedBy")} {fld("Position","position")}
+        {fld("Phone","phone","tel")} {fld("Purpose","purpose")}
+        <div style={{gridColumn:"1/-1"}}>{fld("Activity Description","activityDescription","textarea")}</div>
+        <div style={{gridColumn:"1/-1"}}>{fld("Reason for Request","reasonForRequest","textarea")}</div>
+        <div style={{gridColumn:"1/-1"}}>{fld("Expected Result","expectedResult","textarea")}</div>
+      </div>
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>② Budget Request</div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead><tr style={{background:C.bgDeep}}>{["No.","Item","Qty","Unit Cost (RWF)","Total Cost (RWF)",""].map(h=><th key={h} style={{padding:"7px 9px",textAlign:"left",fontWeight:600,color:C.textMuted,fontSize:10,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
+          <tbody>{form.items.map((item,i)=><tr key={i} style={{borderBottom:`1px solid ${C.border}08`}}>
+            <td style={{padding:"5px 7px",width:32,color:C.textDim,textAlign:"center"}}>{i+1}</td>
+            {["item","quantity","unitCost"].map(k=><td key={k} style={{padding:"5px 7px"}}><input type={k==="item"?"text":"number"} value={item[k]||""} onChange={e=>setItem(i,k,e.target.value)} style={{...inp,padding:"5px 8px",minWidth:k==="item"?140:80}}/></td>)}
+            <td style={{padding:"5px 7px",fontWeight:700,color:C.gold,minWidth:100}}>{(+item.totalCost||0).toLocaleString()}</td>
+            <td style={{padding:"5px 7px"}}>{form.items.length>1&&<button onClick={()=>setForm(p=>({...p,items:p.items.filter((_,idx)=>idx!==i)}))} style={{background:"none",border:"none",color:C.danger,cursor:"pointer",fontSize:15}}>✕</button>}</td>
+          </tr>)}</tbody>
+          <tfoot><tr style={{background:`${C.gold}10`}}>
+            <td colSpan={4} style={{padding:"9px",fontWeight:700,fontSize:13}}>Total</td>
+            <td style={{padding:"9px",fontWeight:800,fontSize:15,color:C.gold}}>{total.toLocaleString()} RWF</td><td/>
+          </tr></tfoot>
+        </table>
+      </div>
+      <button onClick={()=>setForm(p=>({...p,items:[...p.items,emptyItem()]}))} style={{...BtnS(C.border,true),fontSize:11,padding:"5px 12px",marginTop:8}}>+ Add Item</button>
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>③ Implementation</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {fld("Start Date","startDate","date")} {fld("End Date","endDate","date")}
+        {fld("Team Involved","teamInvolved")} {fld("Transport Needed","transportNeeded")}
+      </div>
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>④ Approval</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {fld("Prepared By","preparedBy")} {fld("Position","preparedByPosition")}
+        {fld("Approved By","approvedBy")} {fld("Position","approvedByPosition")}
+        <div style={{gridColumn:"1/-1"}}>{fld("Finance Officer","finance")}</div>
+      </div>
+    </div>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",flexWrap:"wrap"}}>
+      <button onClick={onCancel} style={{...BtnS(C.border,true),padding:"9px 20px"}}>Cancel</button>
+      <button onClick={()=>onSave({...form,status:"draft",updatedAt:new Date().toISOString()})} style={{...BtnS(C.textDim,true),padding:"9px 20px",fontSize:13}}>💾 Save Draft</button>
+      <button onClick={()=>{if(!form.projectName)return alert("Enter Project Name");if(!form.items.some(i=>i.item&&i.totalCost))return alert("Add at least one budget item");onSave({...form,status:"submitted",submittedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});}} style={{...BtnS(C.gold),padding:"9px 20px",fontSize:13,fontWeight:700}}>📤 Submit to Finance</button>
+    </div>
+  </div>;
+}
+
+function FRDetail({ req, currentUser: u, canFinanceApprove, canMdApprove, badgeStyle, statusLabel, onBack, onEdit, onFinanceApprove, onApprove, onReject, onSubmit }) {
+  const total = (req.items||[]).reduce((s,i)=>s+(+i.totalCost||0),0);
+  const card  = {background:C.gradCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12};
+  const row   = (label,value) => value?<div style={{display:"flex",gap:10,padding:"6px 0",borderBottom:`1px solid ${C.border}08`}}><div style={{width:180,fontSize:11,fontWeight:600,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.6px",flexShrink:0}}>{label}</div><div style={{fontSize:13,color:C.text}}>{value}</div></div>:null;
+  return <div style={{maxWidth:860}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18,flexWrap:"wrap",gap:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{...BtnS(C.border,true),fontSize:12,padding:"6px 14px"}}>← Back</button>
+        <div>
+          <div style={{fontSize:17,fontWeight:700,color:C.text}}>{req.projectName||"Field Fund Request"}</div>
+          <div style={{display:"flex",gap:8,marginTop:4,alignItems:"center"}}>
+            <span style={badgeStyle(req.status)}>{statusLabel(req.status)}</span>
+            {req.requestNo&&<span style={{fontSize:11,color:C.textMuted}}>#{req.requestNo}</span>}
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {req.status==="draft"&&<button onClick={onEdit} style={{...BtnS(C.info,true),fontSize:12,padding:"7px 14px"}}>✏️ Edit</button>}
+        {req.status==="draft"&&<button onClick={onSubmit} style={{...BtnS(C.gold),fontSize:12,padding:"7px 14px"}}>📤 Submit</button>}
+        {req.status==="submitted"&&canFinanceApprove&&<><button onClick={onReject} style={{...BtnS(C.danger),fontSize:12,padding:"7px 14px"}}>✕ Reject</button><button onClick={onFinanceApprove} style={{...BtnS(C.info),fontSize:12,padding:"7px 14px"}}>✓ Finance Approve</button></>}
+        {req.status==="finance_approved"&&canMdApprove&&<><button onClick={onReject} style={{...BtnS(C.danger),fontSize:12,padding:"7px 14px"}}>✕ Reject</button><button onClick={onApprove} style={{...BtnS(C.success),fontSize:12,padding:"7px 14px"}}>✓ MD Approve</button></>}
+      </div>
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:10}}>① Basic Info</div>
+      {row("Date",req.date)}{row("Request No",req.requestNo)}{row("Project",req.projectName)}{row("Location",req.location)}{row("Requested By",req.requestedBy)}{row("Purpose",req.purpose)}{row("Activity",req.activityDescription)}{row("Reason",req.reasonForRequest)}{row("Expected Result",req.expectedResult)}
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:10}}>② Budget</div>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead><tr style={{background:C.bgDeep}}>{["No.","Item","Qty","Unit Cost","Total Cost"].map(h=><th key={h} style={{padding:"7px 9px",textAlign:"left",fontWeight:600,color:C.textMuted,fontSize:10,textTransform:"uppercase",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
+        <tbody>{(req.items||[]).filter(i=>i.item).map((item,i)=><tr key={i} style={{borderBottom:`1px solid ${C.border}10`}}>
+          <td style={{padding:"7px 9px",color:C.textDim}}>{i+1}</td>
+          <td style={{padding:"7px 9px",fontWeight:600}}>{item.item}</td>
+          <td style={{padding:"7px 9px"}}>{item.quantity}</td>
+          <td style={{padding:"7px 9px"}}>{(+item.unitCost||0).toLocaleString()}</td>
+          <td style={{padding:"7px 9px",fontWeight:700,color:C.gold}}>{(+item.totalCost||0).toLocaleString()}</td>
+        </tr>)}</tbody>
+        <tfoot><tr style={{background:`${C.gold}10`}}><td colSpan={4} style={{padding:"8px 9px",fontWeight:700}}>Total</td><td style={{padding:"8px 9px",fontWeight:800,fontSize:14,color:C.gold}}>{total.toLocaleString()} RWF</td></tr></tfoot>
+      </table>
+    </div>
+    <div style={card}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:10}}>③ Approval Trail</div>
+      {row("Prepared By",req.preparedBy?`${req.preparedBy} — ${req.preparedByPosition||""}`:null)}
+      {row("Finance Approved By",req.financeApprovedBy)}{req.financeApprovedAt&&row("Finance Approved At",new Date(req.financeApprovedAt).toLocaleString())}
+      {row("MD Approved By",req.approvedBy)}{req.approvedAt&&row("MD Approved At",new Date(req.approvedAt).toLocaleString())}
+      {req.rejectedAt&&row("Rejected At",new Date(req.rejectedAt).toLocaleString())}
+    </div>
+  </div>;
+}
+
+
+// ── Chat sub-components ───────────────────────────────────────────────
+const CHAT_HQ_ROLES = ["sudo","md","admin","hq_finance","hq_accountant","hq_ops"];
+
+function getChatRooms(u, cwsList, users, customRooms) {
+  const rooms = [];
+  const isHQ = CHAT_HQ_ROLES.includes(u.role);
+  cwsList.forEach(cws => {
+    if (isHQ || (u.cwsAccess||[]).includes(cws.id))
+      rooms.push({ id:`cws_${cws.id}`, name:cws.name, icon:"☕", type:"cws", cwsId:cws.id });
+  });
+  if (isHQ) rooms.push({ id:"hq_general", name:"HQ General", icon:"🏢", type:"hq" });
+  (customRooms||[]).forEach(r => {
+    if (r.members?.includes(u.id)||["sudo","md","admin"].includes(u.role))
+      rooms.push({...r, icon:"💬", type:"custom"});
+  });
+  return rooms;
+}
+function loadMsgs(roomId) { try { return JSON.parse(localStorage.getItem(`chat:${roomId}`)||"[]"); } catch { return []; } }
+function saveMsgs(roomId, msgs) { try { localStorage.setItem(`chat:${roomId}`, JSON.stringify(msgs.slice(-200))); } catch(_){} }
+
+function RoomItem({ room, active, onClick, onDelete }) {
+  const [hover, setHover] = useState(false);
+  return <div onClick={onClick} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+    style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 14px", cursor:"pointer", borderRadius:8, margin:"1px 6px",
+      background: active ? `${C.gold}15` : hover ? C.surfaceHover : "transparent",
+      border:`1px solid ${active ? C.gold+"30" : "transparent"}` }}>
+    <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+      <span style={{ fontSize:14 }}>{room.icon}</span>
+      <span style={{ fontSize:12, fontWeight:active?600:400, color:active?C.gold:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{room.name}</span>
+    </div>
+    {onDelete && <button onClick={e=>{e.stopPropagation();onDelete();}} style={{ background:"none", border:"none", color:C.danger, cursor:"pointer", fontSize:13, opacity:hover?1:0 }}>✕</button>}
+  </div>;
+}
+
+function ChatWindow({ room, currentUser:u, users, cwsList, customRooms, saveCustomRooms, canManageRooms }) {
+  const [messages, setMessages] = useState(() => loadMsgs(room.id));
+  const [text, setText] = useState("");
+  const [showMembers, setShowMembers] = useState(false);
+  const bottomRef = useRef(null);
+  const channelRef = useRef(null);
+
+  useEffect(() => { setMessages(loadMsgs(room.id)); setText(""); setShowMembers(false); }, [room.id]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
+
+  useEffect(() => {
+    if (!window.__supabase) return;
+    const ch = window.__supabase.channel(`chat_${room.id}`)
+      .on("broadcast", { event:"msg" }, ({ payload }) => {
+        setMessages(prev => {
+          if (prev.find(m=>m.id===payload.id)) return prev;
+          const updated = [...prev, payload];
+          saveMsgs(room.id, updated);
+          return updated;
+        });
+      }).subscribe();
+    channelRef.current = ch;
+    return () => { try { window.__supabase.removeChannel(ch); } catch(_){} };
+  }, [room.id]);
+
+  const send = () => {
+    const t = text.trim(); if (!t) return;
+    const msg = { id:uid(), roomId:room.id, senderId:u.id, senderName:u.name, senderAvatar:u.avatar||u.name?.slice(0,2).toUpperCase(), text:t, ts:new Date().toISOString() };
+    const updated = [...messages, msg];
+    setMessages(updated); saveMsgs(room.id, updated); setText("");
+    try { channelRef.current?.send({ type:"broadcast", event:"msg", payload:msg }); } catch(_){}
+  };
+
+  const getRoomMembers = () => {
+    if (room.type==="cws") {
+      const seen=new Set(); const all=[];
+      [...(users||[]).filter(usr=>(usr.cwsAccess||[]).includes(room.cwsId)),
+       ...(users||[]).filter(usr=>CHAT_HQ_ROLES.includes(usr.role))]
+        .forEach(m=>{if(!seen.has(m.id)){seen.add(m.id);all.push(m);}});
+      return all;
+    }
+    if (room.type==="hq") return (users||[]).filter(usr=>CHAT_HQ_ROLES.includes(usr.role));
+    if (room.type==="custom") { const cr=customRooms.find(r=>r.id===room.id); return (users||[]).filter(usr=>cr?.members?.includes(usr.id)); }
+    return [];
+  };
+  const members = getRoomMembers();
+  const nonMembers = room.type==="custom" ? (users||[]).filter(usr=>!members.find(m=>m.id===usr.id)) : [];
+
+  const grouped = messages.reduce((acc,msg,i) => {
+    const prev = messages[i-1];
+    acc.push({...msg, sameBlock: prev&&prev.senderId===msg.senderId&&(new Date(msg.ts)-new Date(prev.ts))<300000});
+    return acc;
+  }, []);
+
+  return <>
+    <div style={{ padding:"12px 18px", borderBottom:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between", alignItems:"center", background:C.bgCard, flexShrink:0 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <span style={{ fontSize:18 }}>{room.icon}</span>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{room.name}</div>
+          <div style={{ fontSize:10, color:C.textMuted }}>{members.length} member{members.length!==1?"s":""}</div>
+        </div>
+      </div>
+      <button onClick={()=>setShowMembers(!showMembers)} style={{ ...BtnS(showMembers?C.gold:C.border,showMembers), fontSize:11, padding:"5px 12px" }}>👥 Members</button>
+    </div>
+    <div style={{ flex:1, display:"flex", minHeight:0 }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 18px", display:"flex", flexDirection:"column", gap:2 }}>
+        {grouped.length===0 && <div style={{ textAlign:"center", color:C.textDim, fontSize:12, marginTop:40 }}>No messages yet. Say hello 👋</div>}
+        {grouped.map(msg => {
+          const isMe = msg.senderId===u.id;
+          return <div key={msg.id} style={{ display:"flex", flexDirection:isMe?"row-reverse":"row", gap:8, marginTop:msg.sameBlock?2:10, alignItems:"flex-end" }}>
+            {!msg.sameBlock&&!isMe&&<div style={{ width:30,height:30,borderRadius:"50%",background:`${C.gold}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.gold,flexShrink:0 }}>{msg.senderAvatar||msg.senderName?.slice(0,2).toUpperCase()}</div>}
+            {msg.sameBlock&&!isMe&&<div style={{ width:30,flexShrink:0 }} />}
+            <div style={{ maxWidth:"68%", display:"flex", flexDirection:"column", alignItems:isMe?"flex-end":"flex-start", gap:2 }}>
+              {!msg.sameBlock&&<div style={{ fontSize:10, color:C.textDim, paddingLeft:isMe?0:4, paddingRight:isMe?4:0 }}>{isMe?"You":msg.senderName} · {new Date(msg.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>}
+              <div style={{ padding:"8px 12px", borderRadius:isMe?"14px 14px 4px 14px":"14px 14px 14px 4px", background:isMe?`${C.gold}22`:C.surface, border:`1px solid ${isMe?C.gold+"30":C.border}`, fontSize:13, color:C.text, lineHeight:1.5, wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{msg.text}</div>
+            </div>
+          </div>;
+        })}
+        <div ref={bottomRef} />
+      </div>
+      {showMembers && <div style={{ width:200, borderLeft:`1px solid ${C.border}`, background:C.bgCard, overflowY:"auto", flexShrink:0 }}>
+        <div style={{ padding:"10px 14px 6px", fontSize:10, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.8px" }}>Members ({members.length})</div>
+        {members.map(m=><div key={m.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 14px", gap:8 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+            <div style={{ width:26,height:26,borderRadius:"50%",background:`${C.gold}25`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.gold,flexShrink:0 }}>{m.avatar||m.name?.slice(0,2).toUpperCase()}</div>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{m.name}</div>
+              <div style={{ fontSize:9, color:C.textDim }}>{m.role}</div>
+            </div>
+          </div>
+          {room.type==="custom"&&canManageRooms&&<button onClick={()=>{const updated=customRooms.map(r=>r.id===room.id?{...r,members:(r.members||[]).filter(id=>id!==m.id)}:r);saveCustomRooms(updated);}} style={{ background:"none",border:"none",color:C.danger,cursor:"pointer",fontSize:12,flexShrink:0 }}>✕</button>}
+        </div>)}
+        {room.type==="custom"&&canManageRooms&&nonMembers.length>0&&<>
+          <div style={{ padding:"10px 14px 6px", fontSize:10, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.8px", borderTop:`1px solid ${C.border}`, marginTop:4 }}>Add Members</div>
+          {nonMembers.map(m=><div key={m.id} onClick={()=>{const updated=customRooms.map(r=>r.id===room.id?{...r,members:[...(r.members||[]),m.id]}:r);saveCustomRooms(updated);}}
+            style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer" }}
+            onMouseEnter={e=>e.currentTarget.style.background=C.surfaceHover}
+            onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <div style={{ width:24,height:24,borderRadius:"50%",background:C.bgDeep,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.textMuted,flexShrink:0 }}>{m.avatar||m.name?.slice(0,2).toUpperCase()}</div>
+            <div style={{ fontSize:11, color:C.textDim }}>{m.name}</div>
+            <div style={{ marginLeft:"auto", fontSize:14, color:C.success }}>+</div>
+          </div>)}
+        </>}
+      </div>}
+    </div>
+    <div style={{ padding:"12px 18px", borderTop:`1px solid ${C.border}`, background:C.bgCard, flexShrink:0, display:"flex", gap:10, alignItems:"flex-end" }}>
+      <textarea value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+        rows={1} placeholder={`Message ${room.name}…`}
+        style={{ flex:1, padding:"10px 14px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:10, color:C.text, fontSize:13, resize:"none", fontFamily:"'Inter',sans-serif", lineHeight:1.4, maxHeight:120, overflowY:"auto", outline:"none" }}
+        onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,120)+"px";}}
+        onFocus={e=>e.target.style.borderColor=C.gold} onBlur={e=>e.target.style.borderColor=C.border} />
+      <button onClick={send} disabled={!text.trim()} style={{ ...BtnS(C.gold), padding:"10px 18px", fontSize:13, fontWeight:700, opacity:text.trim()?1:0.4, flexShrink:0 }}>Send ↑</button>
+    </div>
+  </>;
+}
+
+function NewRoomModal({ users, currentUser:u, onCreate, onClose }) {
+  const [name, setName] = useState("");
+  const [selected, setSelected] = useState([u.id]);
+  const toggle = id => setSelected(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+  return <div style={{ position:"fixed", inset:0, background:"#00000080", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9000 }}
+    onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+    <div style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:24, width:"min(460px,92vw)", maxHeight:"80vh", display:"flex", flexDirection:"column", gap:16 }}>
+      <div style={{ fontSize:16, fontWeight:700, color:C.text }}>💬 Create New Room</div>
+      <div>
+        <label style={{ fontSize:11, fontWeight:600, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", display:"block", marginBottom:6 }}>Room Name</label>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Export Team, Season Planning…"
+          style={{ width:"100%", padding:"9px 12px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, outline:"none" }} />
+      </div>
+      <div style={{ flex:1, overflow:"hidden", display:"flex", flexDirection:"column", gap:6 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px" }}>Add Members</div>
+        <div style={{ overflowY:"auto", flex:1, border:`1px solid ${C.border}`, borderRadius:10, padding:"6px 0" }}>
+          {(users||[]).map(user => {
+            const checked = selected.includes(user.id);
+            return <div key={user.id} onClick={()=>user.id!==u.id&&toggle(user.id)}
+              style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 14px", cursor:user.id===u.id?"default":"pointer", background:checked?`${C.gold}10`:"transparent" }}>
+              <div style={{ width:28,height:28,borderRadius:"50%",background:checked?`${C.gold}30`:C.bgDeep,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:checked?C.gold:C.textDim,flexShrink:0 }}>{user.avatar||user.name?.slice(0,2).toUpperCase()}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{user.name}{user.id===u.id?" (you)":""}</div>
+                <div style={{ fontSize:10, color:C.textDim }}>{user.role}</div>
+              </div>
+              <div style={{ width:18,height:18,borderRadius:4,border:`2px solid ${checked?C.gold:C.border}`,background:checked?C.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0 }}>{checked?"✓":""}</div>
+            </div>;
+          })}
+        </div>
+        <div style={{ fontSize:11, color:C.textMuted }}>{selected.length} member{selected.length!==1?"s":""} selected</div>
+      </div>
+      <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+        <button onClick={onClose} style={{ ...BtnS(C.border,true), padding:"9px 20px" }}>Cancel</button>
+        <button onClick={()=>{if(!name.trim())return;onCreate(name.trim(),selected);}} disabled={!name.trim()||selected.length===0}
+          style={{ ...BtnS(C.gold), padding:"9px 20px", fontWeight:700, opacity:name.trim()&&selected.length?1:0.5 }}>Create Room</button>
+      </div>
+    </div>
+  </div>;
+}
+
+
+// ── FieldRequestForm & FieldRequestDetail sub-components ─────────────
+function FieldRequestForm({ initial, currentUser:u, onSave, onCancel }) {
+  const emptyItem = () => ({ no:"", item:"", quantity:"", unitCost:"", totalCost:"" });
+  const [form, setForm] = useState(initial || {
+    id:uid(), date:today(), requestNo:`FFR-${Date.now().toString().slice(-6)}`,
+    projectName:"", location:"", requestedBy:u?.name||"", position:u?.role||"",
+    phone:"", purpose:"", activityDescription:"", reasonForRequest:"", expectedResult:"",
+    startDate:"", endDate:"", teamInvolved:"", transportNeeded:"",
+    preparedBy:u?.name||"", preparedByPosition:u?.role||"",
+    approvedBy:"", approvedByPosition:"", finance:"",
+    status:"draft", items:[emptyItem(),emptyItem(),emptyItem()],
+    createdAt:new Date().toISOString(),
+  });
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  const setItem = (i,k,v) => {
+    const items = form.items.map((item,idx) => {
+      if(idx!==i) return item;
+      const updated = {...item,[k]:v};
+      if(k==="quantity"||k==="unitCost") updated.totalCost=((+(k==="quantity"?v:item.quantity)||0)*(+(k==="unitCost"?v:item.unitCost)||0)).toString();
+      return updated;
+    });
+    setForm(p=>({...p,items}));
+  };
+  const addItem = () => setForm(p=>({...p,items:[...p.items,emptyItem()]}));
+  const remItem = i => setForm(p=>({...p,items:p.items.filter((_,idx)=>idx!==i)}));
+  const total = form.items.reduce((s,i)=>s+(+i.totalCost||0),0);
+  const card = { background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:14, padding:"18px 20px", marginBottom:16 };
+  const inp  = { width:"100%", padding:"9px 12px", background:C.bgDeep, border:`1.5px solid ${C.border}`, borderRadius:9, color:C.text, fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none" };
+  const lbl  = { fontSize:11, fontWeight:600, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:5, display:"block" };
+  const fld  = (label,key,type="text",ph="") => <div>
+    <label style={lbl}>{label}</label>
+    {type==="textarea"
+      ? <textarea value={form[key]||""} onChange={e=>set(key,e.target.value)} rows={3} style={{...inp,resize:"vertical"}} placeholder={ph}/>
+      : <input type={type} value={form[key]||""} onChange={e=>set(key,e.target.value)} style={inp} placeholder={ph}/>}
+  </div>;
+  return <div style={{ maxWidth:860 }}>
+    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+      <button onClick={onCancel} style={{ ...BtnS(C.border,true), fontSize:12, padding:"6px 14px" }}>← Back</button>
+      <div style={{ fontSize:20, fontWeight:700, color:C.text }}>📋 Field Fund Request Form</div>
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>① Basic Information</div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+        {fld("Date","date","date")}{fld("Request No","requestNo")}
+        {fld("Project / Activity Name","projectName")}{fld("Location","location")}
+        {fld("Requested By","requestedBy")}{fld("Position","position")}
+        {fld("Phone","phone","tel")}{fld("Purpose","purpose")}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginTop:14 }}>
+        {fld("Activity Description","activityDescription","textarea")}
+        {fld("Reason for Request","reasonForRequest","textarea")}
+        {fld("Expected Result","expectedResult","textarea")}
+      </div>
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>② Budget Request</div>
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead><tr style={{ background:C.bgDeep }}>
+            {["No.","Item","Quantity","Unit Cost (RWF)","Total Cost (RWF)",""].map(h=><th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:600, color:C.textMuted, fontSize:10, textTransform:"uppercase", borderBottom:`1px solid ${C.border}` }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {form.items.map((item,i)=><tr key={i} style={{ borderBottom:`1px solid ${C.border}08` }}>
+              <td style={{ padding:"6px 8px",width:36 }}><input value={i+1} readOnly style={{...inp,width:32,padding:"5px 6px",textAlign:"center"}} /></td>
+              {["item","quantity","unitCost"].map(k=><td key={k} style={{ padding:"6px 8px" }}><input type={k==="item"?"text":"number"} value={item[k]||""} onChange={e=>setItem(i,k,e.target.value)} style={{...inp,padding:"5px 8px",minWidth:k==="item"?160:90}} /></td>)}
+              <td style={{ padding:"6px 8px",fontWeight:600,color:C.gold,minWidth:110 }}>{(+item.totalCost||0).toLocaleString()}</td>
+              <td style={{ padding:"6px 8px" }}>{form.items.length>1&&<button onClick={()=>remItem(i)} style={{ background:"none",border:"none",color:C.danger,cursor:"pointer",fontSize:16 }}>✕</button>}</td>
+            </tr>)}
+          </tbody>
+          <tfoot><tr style={{ background:`${C.gold}10` }}>
+            <td colSpan={4} style={{ padding:"10px",fontWeight:700,fontSize:13,color:C.text }}>Total Amount Requested</td>
+            <td style={{ padding:"10px",fontWeight:700,fontSize:15,color:C.gold }}>{total.toLocaleString()} RWF</td>
+            <td/>
+          </tr></tfoot>
+        </table>
+      </div>
+      <button onClick={addItem} style={{ ...BtnS(C.border,true), fontSize:11, padding:"6px 14px", marginTop:10 }}>+ Add Item</button>
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>③ Implementation</div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+        {fld("Start Date","startDate","date")}{fld("End Date","endDate","date")}
+        {fld("Team Involved","teamInvolved")}{fld("Transport Needed","transportNeeded")}
+      </div>
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12, fontWeight:700, color:C.gold, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>④ Approval</div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
+        {fld("Prepared By","preparedBy")}{fld("Position","preparedByPosition")}<div/>
+        {fld("Approved By","approvedBy")}{fld("Position","approvedByPosition")}<div/>
+        {fld("Finance Officer","finance")}
+      </div>
+    </div>
+    <div style={{ display:"flex", gap:10, justifyContent:"flex-end", flexWrap:"wrap" }}>
+      <button onClick={onCancel} style={{ ...BtnS(C.border,true), padding:"10px 22px" }}>Cancel</button>
+      <button onClick={()=>onSave({...form,status:"draft",updatedAt:new Date().toISOString()})} style={{ ...BtnS(C.textDim,true), padding:"10px 22px",fontSize:13 }}>💾 Save as Draft</button>
+      <button onClick={()=>{
+        if(!form.projectName){alert("Please enter a Project/Activity Name");return;}
+        if(!form.items.some(i=>i.item&&i.totalCost)){alert("Please add at least one budget item");return;}
+        onSave({...form,status:"submitted",submittedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+      }} style={{ ...BtnS(C.gold), padding:"10px 22px",fontSize:13,fontWeight:700 }}>📤 Submit for Approval</button>
+    </div>
+  </div>;
+}
+
+function FieldRequestDetail({ req, currentUser:u, canFinanceApprove, canMdApprove, onBack, onEdit, onFinanceApprove, onApprove, onReject, onSubmit }) {
+  const total = req.items?.reduce((s,i)=>s+(+i.totalCost||0),0)||0;
+  const card = { background:C.gradCard, border:`1px solid ${C.border}`, borderRadius:14, padding:"18px 20px", marginBottom:14 };
+  const row  = (label,value) => value?<div style={{ display:"flex", gap:10, padding:"7px 0", borderBottom:`1px solid ${C.border}08` }}>
+    <div style={{ width:180,fontSize:11,fontWeight:600,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.6px",flexShrink:0 }}>{label}</div>
+    <div style={{ fontSize:13,color:C.text }}>{value}</div>
+  </div>:null;
+  const stBadge = s => ({ display:"inline-block",padding:"3px 12px",borderRadius:20,fontSize:11,fontWeight:700,textTransform:"uppercase",
+    background:s==="approved"?`${C.success}20`:s==="rejected"?`${C.danger}20`:s==="finance_approved"?`${C.info}20`:s==="submitted"?`${C.gold}20`:`${C.border}40`,
+    color:s==="approved"?C.success:s==="rejected"?C.danger:s==="finance_approved"?C.info:s==="submitted"?C.gold:C.textDim });
+  const stLabel = s => ({"draft":"Draft","submitted":"Submitted — Awaiting Finance","finance_approved":"Finance Approved — Awaiting MD","approved":"Approved by MD","rejected":"Rejected"}[s]||s);
+  return <div style={{ maxWidth:860 }}>
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:10 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        <button onClick={onBack} style={{ ...BtnS(C.border,true), fontSize:12, padding:"6px 14px" }}>← Back</button>
+        <div>
+          <div style={{ fontSize:18,fontWeight:700,color:C.text }}>{req.projectName||"Field Fund Request"}</div>
+          <div style={{ display:"flex",gap:8,marginTop:4,alignItems:"center" }}>
+            <span style={stBadge(req.status)}>{stLabel(req.status)}</span>
+            {req.requestNo&&<span style={{ fontSize:11,color:C.textMuted }}>#{req.requestNo}</span>}
+          </div>
+        </div>
+      </div>
+      <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+        {req.status==="draft"&&<button onClick={onEdit} style={{ ...BtnS(C.info,true),fontSize:12,padding:"7px 16px" }}>✏️ Edit</button>}
+        {req.status==="draft"&&<button onClick={onSubmit} style={{ ...BtnS(C.gold),fontSize:12,padding:"7px 16px" }}>📤 Submit to Finance</button>}
+        {req.status==="submitted"&&canFinanceApprove&&<>
+          <button onClick={onReject}         style={{ ...BtnS(C.danger),fontSize:12,padding:"7px 16px" }}>✕ Reject</button>
+          <button onClick={onFinanceApprove} style={{ ...BtnS(C.info),  fontSize:12,padding:"7px 16px" }}>✓ Finance Approve</button>
+        </>}
+        {req.status==="finance_approved"&&canMdApprove&&<>
+          <button onClick={onReject}  style={{ ...BtnS(C.danger), fontSize:12,padding:"7px 16px" }}>✕ Reject</button>
+          <button onClick={onApprove} style={{ ...BtnS(C.success),fontSize:12,padding:"7px 16px" }}>✓ MD Approve</button>
+        </>}
+      </div>
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12 }}>① Basic Information</div>
+      {row("Date",req.date)}{row("Request No",req.requestNo)}{row("Project / Activity",req.projectName)}
+      {row("Location",req.location)}{row("Requested By",req.requestedBy)}{row("Position",req.position)}
+      {row("Phone",req.phone)}{row("Purpose",req.purpose)}
+      {row("Activity Description",req.activityDescription)}{row("Reason",req.reasonForRequest)}{row("Expected Result",req.expectedResult)}
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12 }}>② Budget</div>
+      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+        <thead><tr style={{ background:C.bgDeep }}>
+          {["No.","Item","Qty","Unit Cost (RWF)","Total Cost (RWF)"].map(h=><th key={h} style={{ padding:"8px 10px",textAlign:"left",fontSize:10,fontWeight:600,color:C.textMuted,textTransform:"uppercase",borderBottom:`1px solid ${C.border}` }}>{h}</th>)}
+        </tr></thead>
+        <tbody>{(req.items||[]).filter(i=>i.item).map((item,i)=><tr key={i} style={{ borderBottom:`1px solid ${C.border}10` }}>
+          <td style={{ padding:"8px 10px",color:C.textDim }}>{i+1}</td>
+          <td style={{ padding:"8px 10px",fontWeight:600 }}>{item.item}</td>
+          <td style={{ padding:"8px 10px" }}>{item.quantity}</td>
+          <td style={{ padding:"8px 10px" }}>{(+item.unitCost||0).toLocaleString()}</td>
+          <td style={{ padding:"8px 10px",fontWeight:700,color:C.gold }}>{(+item.totalCost||0).toLocaleString()}</td>
+        </tr>)}</tbody>
+        <tfoot><tr style={{ background:`${C.gold}10` }}>
+          <td colSpan={4} style={{ padding:"10px",fontWeight:700,fontSize:13 }}>Total</td>
+          <td style={{ padding:"10px",fontWeight:700,fontSize:15,color:C.gold }}>{total.toLocaleString()} RWF</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12 }}>③ Implementation</div>
+      {row("Start Date",req.startDate)}{row("End Date",req.endDate)}
+      {row("Team Involved",req.teamInvolved)}{row("Transport",req.transportNeeded)}
+    </div>
+    <div style={card}>
+      <div style={{ fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12 }}>④ Approval</div>
+      {row("Prepared By",req.preparedBy?`${req.preparedBy} — ${req.preparedByPosition||""}`:null)}
+      {row("Finance Approved By",req.financeApprovedBy)}{req.financeApprovedAt&&row("Finance Approved At",new Date(req.financeApprovedAt).toLocaleString())}
+      {row("MD Approved By",req.approvedBy)}{req.approvedAt&&row("MD Approved At",new Date(req.approvedAt).toLocaleString())}
+      {req.rejectedAt&&row("Rejected At",new Date(req.rejectedAt).toLocaleString())}
+    </div>
+  </div>;
 }
 
 (function(){
