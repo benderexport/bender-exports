@@ -5503,6 +5503,8 @@ function LoansPage() {
     </div>
   );
 }
+
+function ReportsPage() {
   const { cherry, expenses, cashbook, bankTx, stock, debts, cwsList,
           machTx, fundRequests, farmers: farmers2, users, seasons } = useApp();
 
@@ -6214,11 +6216,7 @@ function LoansPage() {
 }
 
 
-function ReportsPage() {
-  const { cherry, expenses, cashbook, bankTx, stock, debts, cwsList, machTx, fundRequests, farmers: farmers2, users, seasons } = useApp();
 
-  return <div>Reports</div>;
-}
 
 function MachineryPage() {
   const { currentUser: u, machines, setMachines, tasks, setTasks, machTx, setMachTx, driverLogs, leaves, setLeaves, users, setUsers, assistants, setAssistants, online, pending, setPending, addNote } = useApp();
